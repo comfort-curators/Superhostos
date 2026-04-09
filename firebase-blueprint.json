@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "Property": {
+      "title": "Property",
+      "description": "A rental property managed by Comfort Curators.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "city": { "type": "string" },
+        "country": { "type": "string" },
+        "bedrooms": { "type": "integer" },
+        "max_guests": { "type": "integer" },
+        "owner_name": { "type": "string" },
+        "amenities": { "type": "array", "items": { "type": "string" } },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "city"]
+    },
+    "Metric": {
+      "title": "Metric",
+      "description": "Operational metrics for a property.",
+      "type": "object",
+      "properties": {
+        "property_id": { "type": "string" },
+        "revenue": { "type": "number" },
+        "occupancy": { "type": "number" },
+        "adr": { "type": "number" },
+        "revpar": { "type": "number" },
+        "inventory_health": { "type": "number" },
+        "audit_score": { "type": "number" },
+        "cleaning_score": { "type": "number" },
+        "linen_score": { "type": "number" },
+        "maintenance_score": { "type": "number" },
+        "stock_days": { "type": "number" },
+        "lead_time": { "type": "number" },
+        "restock_flag": { "type": "boolean" },
+        "cleaning_flag": { "type": "boolean" },
+        "maintenance_flag": { "type": "boolean" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["property_id"]
+    },
+    "Prediction": {
+      "title": "Prediction",
+      "description": "AI-calculated stay readiness and risk level.",
+      "type": "object",
+      "properties": {
+        "property_id": { "type": "string" },
+        "stay_readiness": { "type": "number" },
+        "risk_level": { "type": "string", "enum": ["LOW", "HIGH", "CRITICAL", "STOCKOUT"] },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["property_id", "stay_readiness", "risk_level"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Inventory restock order.",
+      "type": "object",
+      "properties": {
+        "property_id": { "type": "string" },
+        "item": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "status": { "type": "string", "enum": ["pending", "completed"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["property_id", "item"]
+    },
+    "CleaningTask": {
+      "title": "Cleaning Task",
+      "description": "Scheduled cleaning task.",
+      "type": "object",
+      "properties": {
+        "property_id": { "type": "string" },
+        "task_date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["scheduled", "completed"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["property_id", "task_date"]
+    },
+    "MaintenanceTask": {
+      "title": "Maintenance Task",
+      "description": "Maintenance issue and priority.",
+      "type": "object",
+      "properties": {
+        "property_id": { "type": "string" },
+        "issue": { "type": "string" },
+        "priority": { "type": "string", "enum": ["low", "medium", "high"] },
+        "status": { "type": "string", "enum": ["open", "completed"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["property_id", "issue"]
+    }
+  },
+  "firestore": {
+    "/properties/{propertyId}": { "schema": "Property", "description": "Property details" },
+    "/metrics/{metricId}": { "schema": "Metric", "description": "Property metrics" },
+    "/predictions/{propertyId}": { "schema": "Prediction", "description": "Property predictions" },
+    "/orders/{orderId}": { "schema": "Order", "description": "Restock orders" },
+    "/cleaning_tasks/{taskId}": { "schema": "CleaningTask", "description": "Cleaning tasks" },
+    "/maintenance_tasks/{taskId}": { "schema": "MaintenanceTask", "description": "Maintenance tasks" }
+  }
+}
