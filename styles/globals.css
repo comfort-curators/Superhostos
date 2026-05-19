@@ -1,1 +1,71 @@
-/* full globals.css content here - but I need to paste it */
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --charcoal: #1a1a1a;
+  --charcoal-light: #2a2a2a;
+  --charcoal-lighter: #3a3a3a;
+  --cream: #f8f6f3;
+  --stone: #a8a29e;
+  --stone-dark: #44403c;
+  --stone-light: #e7e5e4;
+  --white: #fefefe;
+  --accent: #d4af37;
+  --ease-luxury: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--cream);
+  color: var(--charcoal);
+}
+
+.bodoni {
+  font-family: 'Bodoni Moda', serif;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.8s var(--ease-luxury) forwards;
+}
+
+.loading-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(248, 246, 243, 0.1), transparent);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.cursor-glow {
+  position: fixed;
+  width: 384px;
+  height: 384px;
+  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+  opacity: 0.03;
+  border-radius: 50%;
+  pointer-events: none;
+  transition: all 300ms ease-out;
+  z-index: 0;
+}
