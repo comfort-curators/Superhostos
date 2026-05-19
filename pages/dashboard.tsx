@@ -220,7 +220,12 @@ function LiveDemo() {
     };
     
     const keyword = Object.keys(responses).find(k => message.toLowerCase().includes(k));
-    const result = responses[keyword] || {
+    const result = keyword
+  ? responses[keyword]
+  : {
+      response: "Thank you for your message. I've forwarded this to our staff and someone will assist you shortly.",
+      task: "General Request — Staff Follow-up Required"
+    };
       response: "Thank you for your message. I've forwarded this to our staff and someone will assist you shortly.",
       task: "General Request — Staff Follow-up Required"
     };
@@ -240,52 +245,3 @@ function LiveDemo() {
           style={{ borderColor: 'var(--stone-light)' }}
           rows={3}
           placeholder="Try: 'The WiFi isn't working' or 'Can I get extra towels?'"
-        />
-        
-        <button 
-          onClick={handleSubmit}
-          disabled={!message.trim() || loading}
-          className="px-8 py-4 transition-all duration-300 hover:scale-105 disabled:opacity-50"
-          style={{ 
-            backgroundColor: 'var(--charcoal)', 
-            color: 'var(--cream)' 
-          }}
-        >
-          {loading ? 'AI Processing...' : 'Generate AI Response'}
-        </button>
-        
-        {response && (
-          <motion.div 
-            className="space-y-4 mt-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div 
-              className="p-6 border-l-4"
-              style={{ 
-                backgroundColor: 'var(--cream)', 
-                borderColor: 'var(--accent)' 
-              }}
-            >
-              <h3 className="font-medium mb-2" style={{ color: 'var(--charcoal)' }}>
-                AI Response:
-              </h3>
-              <p className="font-light" style={{ color: 'var(--charcoal)' }}>
-                "{response}"
-              </p>
-            </div>
-            
-            <div className="p-6 bg-white border" style={{ borderColor: 'var(--stone-light)' }}>
-              <h3 className="font-medium mb-2" style={{ color: 'var(--charcoal)' }}>
-                Task Created:
-              </h3>
-              <p className="font-light" style={{ color: 'var(--stone)' }}>
-                {task}
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </div>
-    </div>
-  );
-}
