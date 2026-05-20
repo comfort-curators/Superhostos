@@ -1,0 +1,17 @@
+{
+  "apps": {
+    "web": "Frontend React application",
+    "api": "Fastify backend APIs",
+    "worker": "Background workers and queues"
+  },
+  "packages": {
+    "ui": "Shared UI components",
+    "db": "Database schema and queries",
+    "shared": "Shared utilities",
+    "types": "Global TypeScript types",
+    "config": "Environment and runtime config"
+  },
+  "infra": {
+    "terraform": "Infrastructure as code"
+  }
+}
