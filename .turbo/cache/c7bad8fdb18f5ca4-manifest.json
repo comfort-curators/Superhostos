@@ -1,0 +1,38 @@
+{
+  "files": {
+    "apps/web/dist/assets/index-w1fjY5sd.css": {
+      "size": 20489,
+      "mtime_nanos": 1779293708702672715,
+      "mode": 438,
+      "is_dir": false
+    },
+    "apps/web/dist/assets": { "size": 0, "mtime_nanos": 0, "mode": 0, "is_dir": true },
+    "apps/web/dist/assets/index-ClaUm9u7.js": {
+      "size": 849948,
+      "mtime_nanos": 1779293708705672715,
+      "mode": 438,
+      "is_dir": false
+    },
+    "apps/web/dist": { "size": 0, "mtime_nanos": 0, "mode": 0, "is_dir": true },
+    "apps/web/dist/index.html": {
+      "size": 457,
+      "mtime_nanos": 1779293708704672715,
+      "mode": 438,
+      "is_dir": false
+    },
+    "apps/web/.turbo/turbo-build.log": {
+      "size": 744,
+      "mtime_nanos": 1779293708837672709,
+      "mode": 438,
+      "is_dir": false
+    }
+  },
+  "order": [
+    "apps/web/.turbo/turbo-build.log",
+    "apps/web/dist",
+    "apps/web/dist/assets",
+    "apps/web/dist/assets/index-ClaUm9u7.js",
+    "apps/web/dist/assets/index-w1fjY5sd.css",
+    "apps/web/dist/index.html"
+  ]
+}
