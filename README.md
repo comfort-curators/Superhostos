@@ -20,3 +20,4 @@ Infrastructure:
 - centralized property operations
 ## Setup
 Coming soon.
+deploy trigger
