@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --charcoal: #1a1a1a;
+  --cream: #f8f6f3;
+  --stone: #6b6b6b;
+  --accent: #c5a26f;
+}
+
+body {
+  font-family: 'Bodoni Moda', serif;
+}
