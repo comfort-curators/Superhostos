@@ -1,0 +1,4 @@
+
+> @superhostos/api@0.1.0 typecheck /workspaces/Superhostos/apps/api
+> tsc --noEmit
+
