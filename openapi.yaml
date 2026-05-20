@@ -1,0 +1,22 @@
+openapi: 3.0.0
+info:
+  title: SuperhostOS API
+  version: 1.0.0
+paths:
+  /properties:
+    get:
+      summary: Get all properties
+  /bookings:
+    get:
+      summary: Get bookings
+    post:
+      summary: Create booking
+  /guests:
+    get:
+      summary: Get guests
+  /messages/ai:
+    post:
+      summary: Generate AI response
+  /cleaning/tasks:
+    get:
+      summary: Get cleaning tasks
