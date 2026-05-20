@@ -1,6 +1,7 @@
 {
   "framework": "vite",
-  "installCommand": "npm install",
-  "buildCommand": "pnpm build",
-  "outputDirectory": "dist"
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm turbo build --filter=@superhostos/web",
+  "outputDirectory": "apps/web/dist",
+  "rootDirectory": "."
 }
