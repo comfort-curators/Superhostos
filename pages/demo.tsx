@@ -1,1 +1,7 @@
-export default function Demo(){return <div><h1>SuperhostOS Demo</h1></div>}
+export default function Demo() {
+  return (
+    <div>
+      <h1>SuperhostOS Demo</h1>
+    </div>
+  );
+}
