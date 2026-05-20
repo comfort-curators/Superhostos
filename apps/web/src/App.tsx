@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 // Types
 const propertySchema = z.object({
@@ -607,6 +608,7 @@ export default function Superhostos() {
           </div>
         )}
       </AnimatePresence>
+      <SpeedInsights />
     </div>
   );
 }
