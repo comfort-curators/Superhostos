@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: SuperhostOS Backend API Infrastructure
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  DatabaseURL:
+    Type: String
+    NoEcho: true
+    Description: PostgreSQL connection string
+
+  RedisURL:
+    Type: String
+    NoEcho: true
+    Description: Redis connection string
+
+Mappings:
+  EnvironmentConfig:
+    dev:
+      LogLevel: debug
+      MemorySize: 512
+      Timeout: 30
+    staging:
+      LogLevel: info
+      MemorySize: 1024
+      Timeout: 30
+    prod:
+      LogLevel: info
+      MemorySize: 2048
+      Timeout: 30
+
+Globals:
+  Function:
+    Timeout: !FindInMap [EnvironmentConfig, !Ref Environment, Timeout]
+    MemorySize: !FindInMap [EnvironmentConfig, !Ref Environment, MemorySize]
+    Environment:
+      Variables:
+        NODE_ENV: !Ref Environment
+        DATABASE_URL: !Ref DatabaseURL
+        REDIS_URL: !Ref RedisURL
+        LOG_LEVEL: !FindInMap [EnvironmentConfig, !Ref Environment, LogLevel]
+    Runtime: nodejs20.x
+    Architectures:
+      - x86_64
+
+Resources:
+  # API Gateway HTTP API
+  SuperhostAPI:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Environment
+      CorsConfiguration:
+        AllowOrigins:
+          - http://localhost:3000
+          - http://localhost:5173
+          - !Sub 'https://*.superhostos.com'
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Requested-With
+
+  # Lambda Function for API
+  SuperhostAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'superhostos-api-${Environment}'
+      CodeUri: dist/
+      Handler: lambda.handler
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SuperhostAPI
+            Path: /{proxy+}
+            Method: ANY
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/superhostos/*'
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:superhostos/*'
+
+  # CloudWatch Log Group
+  APILogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/superhostos-api-${Environment}'
+      RetentionInDays: 30
+
+  # API Gateway Stage
+  APIStage:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      TracingEnabled: true
+
+Outputs:
+  APIEndpoint:
+    Description: API Gateway HTTP API endpoint
+    Value: !Sub 'https://${SuperhostAPI}.execute-api.${AWS::Region}.amazonaws.com'
+    Export:
+      Name: !Sub 'SuperhostOS-API-${Environment}'
+
+  LambdaFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt SuperhostAPIFunction.Arn
+    Export:
+      Name: !Sub 'SuperhostOS-Lambda-${Environment}'
+
+  LogGroupName:
+    Description: CloudWatch Log Group name
+    Value: !Ref APILogGroup
+    Export:
+      Name: !Sub 'SuperhostOS-LogGroup-${Environment}'

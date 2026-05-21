@@ -1,0 +1,73 @@
+version: 1
+applications:
+  - appRoot: .
+    backend:
+      phases:
+        build:
+          commands:
+            - echo "Installing dependencies..."
+            - npm install -g pnpm@9.15.0
+            - pnpm install
+            - echo "Building backend API..."
+            - pnpm turbo build --filter=@superhostos/api
+            - echo "Running database migrations..."
+            - pnpm --filter=@superhostos/db run migrate
+        pre_build:
+          commands:
+            - echo "Pre-build phase..."
+      artifacts:
+        baseDirectory: /
+        files:
+          - node_modules/**/*
+          - apps/api/dist/**/*
+          - apps/api/package.json
+          - pnpm-lock.yaml
+          - pnpm-workspace.yaml
+          - packages/db/migrations/**/*
+          - packages/db/drizzle.config.ts
+        cache:
+          paths:
+            - node_modules/**/*
+            - .pnpm-store/**/*
+      output:
+        baseDirectory: apps/api/dist
+        files:
+          - "**/*"
+    frontend:
+      phases:
+        build:
+          commands:
+            - echo "Building frontend..."
+            - pnpm turbo build --filter=@superhostos/web
+        post_build:
+          commands:
+            - echo "Frontend build complete"
+      artifacts:
+        baseDirectory: apps/web/dist
+        files:
+          - "**/*"
+      cache:
+        paths:
+          - node_modules/**/*
+          - .pnpm-store/**/*
+      output:
+        baseDirectory: apps/web/dist
+        files:
+          - "**/*"
+    envVariables:
+      - name: NODE_ENV
+        value: production
+      - name: NODE_OPTIONS
+        value: --max-old-space-size=4096
+      - name: TURBO_TEAM
+        value: superhostos
+      - name: TURBO_TOKEN
+        secretPath: /amplify/secret/turbo_token
+      - name: DATABASE_URL
+        secretPath: /amplify/secret/database_url
+      - name: REDIS_URL
+        secretPath: /amplify/secret/redis_url
+      - name: API_PORT
+        value: "8080"
+      - name: API_HOST
+        value: "0.0.0.0"

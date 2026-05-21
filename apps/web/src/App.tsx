@@ -1,21 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  BarChart3,
-  Calendar,
-  Clock,
-  Home,
-  LogOut,
-  MapPin,
-  Plus,
-  Settings,
-  Star,
-  TrendingUp,
-  Users,
-} from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
+import { Route, Switch, useLocation } from 'wouter';
+import { Toaster, toast } from 'sonner';
+import { MapPin, Plus, Star } from 'lucide-react';
+import { z } from 'zod';
 import {
   Area,
   AreaChart,
@@ -23,8 +14,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -32,190 +21,100 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Toaster, toast } from 'sonner';
-import { Route, Switch, useLocation } from 'wouter';
-import { z } from 'zod';
 
-// Types
-const propertySchema = z.object({
-  name: z.string().min(3, 'Name too short'),
-  location: z.string().min(3, 'Location required'),
-  pricePerNight: z.number().min(50, 'Min $50/night'),
-  bedrooms: z.number().min(1).max(10),
-  type: z.enum(['Villa', 'Penthouse', 'Estate', 'Chalet']),
-});
-type Property = z.infer<typeof propertySchema> & {
-  id: number;
-  image: string;
-  rating: number;
-  occupancy: number;
+import { Sidebar } from './components/Sidebar';
+import { Topbar } from './components/Topbar';
+import { propertySchema, type Booking, type DashboardTab, type Property } from './types';
+import { barData, initialBookings, initialProperties, pieData, revenueData } from './data';
+import { fetchBookings, fetchProperties } from './services/api';
+
+const routeTitles: Record<DashboardTab, string> = {
+  dashboard: 'Portfolio Intelligence',
+  properties: 'Property Portfolio',
+  bookings: 'Upcoming Stays',
+  analytics: 'Performance Intelligence',
+  settings: 'Host Settings',
 };
 
-// Fake data
-const initialProperties: Property[] = [
-  {
-    id: 1,
-    name: 'Villa Azure',
-    location: 'Santorini, Greece',
-    pricePerNight: 1250,
-    bedrooms: 5,
-    type: 'Villa',
-    image: 'https://picsum.photos/id/1015/600/400',
-    rating: 4.98,
-    occupancy: 92,
-  },
-  {
-    id: 2,
-    name: 'The Penthouse',
-    location: 'Dubai Marina',
-    pricePerNight: 890,
-    bedrooms: 3,
-    type: 'Penthouse',
-    image: 'https://picsum.photos/id/160/600/400',
-    rating: 4.95,
-    occupancy: 87,
-  },
-  {
-    id: 3,
-    name: 'Cliffside Estate',
-    location: 'Big Sur, CA',
-    pricePerNight: 2100,
-    bedrooms: 6,
-    type: 'Estate',
-    image: 'https://picsum.photos/id/1033/600/400',
-    rating: 4.99,
-    occupancy: 95,
-  },
-  {
-    id: 4,
-    name: 'Alpine Chalet',
-    location: 'Zermatt, Switzerland',
-    pricePerNight: 1450,
-    bedrooms: 4,
-    type: 'Chalet',
-    image: 'https://picsum.photos/id/106/600/400',
-    rating: 4.92,
-    occupancy: 78,
-  },
-  {
-    id: 5,
-    name: 'Oceanfront Villa',
-    location: 'Bali, Indonesia',
-    pricePerNight: 680,
-    bedrooms: 4,
-    type: 'Villa',
-    image: 'https://picsum.photos/id/1074/600/400',
-    rating: 4.87,
-    occupancy: 84,
-  },
-  {
-    id: 6,
-    name: 'Sky Residence',
-    location: 'NYC, USA',
-    pricePerNight: 3200,
-    bedrooms: 5,
-    type: 'Penthouse',
-    image: 'https://picsum.photos/id/201/600/400',
-    rating: 4.96,
-    occupancy: 91,
-  },
-];
-
-const revenueData = [
-  { month: 'Jan', revenue: 124000, bookings: 42 },
-  { month: 'Feb', revenue: 98000, bookings: 31 },
-  { month: 'Mar', revenue: 156000, bookings: 58 },
-  { month: 'Apr', revenue: 189000, bookings: 67 },
-  { month: 'May', revenue: 214000, bookings: 72 },
-  { month: 'Jun', revenue: 267000, bookings: 89 },
-];
-
-const pieData = [
-  { name: 'Villa', value: 38, fill: '#c5a26f' },
-  { name: 'Penthouse', value: 25, fill: '#8b7355' },
-  { name: 'Estate', value: 22, fill: '#a67c52' },
-  { name: 'Chalet', value: 15, fill: '#d4af37' },
-];
-
-const barData = [
-  { name: 'Occupancy', value: 89 },
-  { name: 'Avg Rating', value: 94 },
-  { name: 'Response', value: 97 },
-  { name: 'Superhost', value: 100 },
-];
-
-// Fake bookings
-const initialBookings = [
-  {
-    id: 101,
-    guest: 'Elena V.',
-    property: 'Villa Azure',
-    dates: 'Jun 12-19',
-    amount: 8750,
-    status: 'confirmed' as const,
-  },
-  {
-    id: 102,
-    guest: 'Marcus T.',
-    property: 'Cliffside Estate',
-    dates: 'Jun 15-22',
-    amount: 14700,
-    status: 'confirmed' as const,
-  },
-  {
-    id: 103,
-    guest: 'Sofia K.',
-    property: 'The Penthouse',
-    dates: 'Jun 20-25',
-    amount: 4450,
-    status: 'pending' as const,
-  },
-  {
-    id: 104,
-    guest: 'Liam R.',
-    property: 'Alpine Chalet',
-    dates: 'Jul 1-8',
-    amount: 10150,
-    status: 'confirmed' as const,
-  },
-  {
-    id: 105,
-    guest: 'Aisha P.',
-    property: 'Oceanfront Villa',
-    dates: 'Jul 3-10',
-    amount: 4760,
-    status: 'cancelled' as const,
-  },
-];
-
-type Booking = (typeof initialBookings)[0];
-
-export default function Superhostos() {
+export default function App() {
   const [location, setLocation] = useLocation();
-  const [properties, setProperties] = useState<Property[]>(initialProperties);
-  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'properties' | 'bookings' | 'analytics' | 'settings'
-  >('dashboard');
+  const [properties, setProperties] = useState<Property[]>(initialProperties);
+  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
 
-  const filteredBookings = bookings.filter(
-    (b) =>
-      b.guest.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.property.toLowerCase().includes(searchTerm.toLowerCase())
+  const activeTab = useMemo<DashboardTab>(() => {
+    const path = location.replace(/\//g, '') as DashboardTab;
+    return ['dashboard', 'properties', 'bookings', 'analytics', 'settings'].includes(path)
+      ? path
+      : 'dashboard';
+  }, [location]);
+
+  useEffect(() => {
+    if (location === '/') {
+      setLocation('/dashboard');
+    }
+  }, [location, setLocation]);
+
+  const propertiesQuery = useQuery({
+    queryKey: ['properties'],
+    queryFn: fetchProperties,
+    initialData: initialProperties,
+    staleTime: 1000 * 60,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (propertiesQuery.data) {
+      setProperties(propertiesQuery.data);
+    }
+  }, [propertiesQuery.data]);
+
+  const bookingsQuery = useQuery({
+    queryKey: ['bookings'],
+    queryFn: fetchBookings,
+    initialData: initialBookings,
+    staleTime: 1000 * 60,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (bookingsQuery.data) {
+      setBookings(bookingsQuery.data);
+    }
+  }, [bookingsQuery.data]);
+
+  const propertiesLoading = propertiesQuery.isLoading;
+  const bookingsLoading = bookingsQuery.isLoading;
+
+  const filteredBookings = useMemo(
+    () =>
+      bookings.filter(
+        (booking) =>
+          booking.guest.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          booking.property.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [bookings, searchTerm]
   );
 
-  const totalRevenue = properties.reduce(
-    (sum, p) => sum + p.pricePerNight * 28 * (p.occupancy / 100),
-    0
+  const totalRevenue = useMemo(
+    () =>
+      properties.reduce(
+        (sum, property) => sum + property.pricePerNight * 28 * (property.occupancy / 100),
+        0
+      ),
+    [properties]
   );
-  const avgOccupancy = Math.round(
-    properties.reduce((sum, p) => sum + p.occupancy, 0) / properties.length
+
+  const avgOccupancy = useMemo(
+    () => Math.round(properties.reduce((sum, property) => sum + property.occupancy, 0) / properties.length),
+    [properties]
   );
+
   const superhostScore = 98;
+  const activeGuests = 147;
 
   const form = useForm<z.infer<typeof propertySchema>>({
     resolver: zodResolver(propertySchema),
@@ -223,773 +122,560 @@ export default function Superhostos() {
   });
 
   const handleAddProperty = (data: z.infer<typeof propertySchema>) => {
-    const newProp: Property = {
+    const newProperty: Property = {
       ...data,
       id: Date.now(),
-      image: `https://picsum.photos/id/${Math.floor(Math.random() * 100) + 100}/600/400`,
+      image: `https://images.unsplash.com/photo-1560185127-6f8bd6f16d3d?auto=format&fit=crop&w=1200&q=80`,
       rating: 4.9,
-      occupancy: Math.floor(Math.random() * 20) + 75,
+      occupancy: Math.max(65, Math.min(98, Math.floor(Math.random() * 25) + 75)),
     };
-    setProperties([...properties, newProp]);
+
+    setProperties((current) => [newProperty, ...current]);
     setIsAddModalOpen(false);
     form.reset();
     toast.success('Property added', {
-      description: `${data.name} is now live. Superhost score +2`,
-      action: { label: 'View', onClick: () => setActiveTab('properties') },
+      description: `${data.name} is now live and actively optimizing revenue.`,
     });
   };
 
   const handleUpdateProperty = (data: z.infer<typeof propertySchema>) => {
     if (!selectedProperty) return;
-    setProperties(properties.map((p) => (p.id === selectedProperty.id ? { ...p, ...data } : p)));
+    setProperties((current) =>
+      current.map((property) =>
+        property.id === selectedProperty.id ? { ...property, ...data } : property
+      )
+    );
     setIsModalOpen(false);
     setSelectedProperty(null);
-    toast.success('Pricing updated', {
-      description: `${data.name} rates synced across all platforms.`,
+    toast.success('Listing updated', {
+      description: `${data.name} rates are synced across your channel manager.`,
     });
   };
 
-  const openEdit = (prop: Property) => {
-    setSelectedProperty(prop);
+  const openEdit = (property: Property) => {
+    setSelectedProperty(property);
     form.reset({
-      name: prop.name,
-      location: prop.location,
-      pricePerNight: prop.pricePerNight,
-      bedrooms: prop.bedrooms,
-      type: prop.type,
+      name: property.name,
+      location: property.location,
+      pricePerNight: property.pricePerNight,
+      bedrooms: property.bedrooms,
+      type: property.type,
     });
     setIsModalOpen(true);
   };
 
-  const kpiCards = [
-    {
-      icon: TrendingUp,
-      label: 'Monthly Revenue',
-      value: `$${(totalRevenue / 12).toFixed(0)}k`,
-      change: '+18%',
-      color: 'accent',
-    },
-    { icon: Users, label: 'Active Guests', value: '147', change: '+12', color: 'emerald' },
-    {
-      icon: Star,
-      label: 'Superhost Score',
-      value: superhostScore,
-      change: 'Top 2%',
-      color: 'amber',
-    },
-    { icon: Clock, label: 'Avg Response', value: '11m', change: '-4m', color: 'sky' },
-  ];
+  const kpiCards = useMemo(
+    () => [
+      {
+        label: 'Projected Monthly Revenue',
+        value: `$${Math.round(totalRevenue / 12 / 1000)}k`,
+        change: '+18%',
+        accent: true,
+      },
+      {
+        label: 'Active Guests',
+        value: `${activeGuests}`,
+        change: '+12',
+        accent: false,
+      },
+      {
+        label: 'Superhost Score',
+        value: `${superhostScore}`,
+        change: 'Top 2%',
+        accent: false,
+      },
+      {
+        label: 'Avg Response',
+        value: '11m',
+        change: '-4m',
+        accent: false,
+      },
+    ],
+    [totalRevenue, activeGuests, superhostScore]
+  );
 
-  const navItems = [
-    { path: 'dashboard', icon: Home, label: 'Dashboard' },
-    { path: 'properties', icon: MapPin, label: 'Properties' },
-    { path: 'bookings', icon: Calendar, label: 'Bookings' },
-    { path: 'analytics', icon: BarChart3, label: 'Analytics' },
-    { path: 'settings', icon: Settings, label: 'Settings' },
-  ] as const;
+  const routeTitle = routeTitles[activeTab];
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-cream font-bodoni overflow-hidden">
+    <div className="min-h-screen bg-[#06111f] text-cream font-bodoni overflow-hidden">
       <Toaster position="top-center" richColors closeButton />
+      <Sidebar
+        activeTab={activeTab}
+        onNavigate={(tab) => setLocation(`/${tab}`)}
+        onLogout={() => toast('Session ended securely.', { description: 'You are logged out from the demo.' })}
+      />
 
-      {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-72 bg-zinc-950 border-r border-zinc-800 z-50 flex flex-col">
-        <div className="p-8 flex items-center gap-3 border-b border-zinc-800">
-          <div className="w-9 h-9 bg-accent rounded-xl flex items-center justify-center">
-            <span className="text-zinc-950 font-bold text-2xl">S</span>
-          </div>
-          <div>
-            <div className="text-3xl font-semibold tracking-tighter">SUPERHOSTOS</div>
-            <div className="text-[10px] text-stone -mt-1">THE OS FOR ELITE HOSTS</div>
-          </div>
-        </div>
-
-        <div className="px-4 py-8 flex-1">
-          <div className="text-xs uppercase tracking-[3px] text-stone px-4 mb-4">OPERATIONS</div>
-          {navItems.map((item) => {
-            const isActive = activeTab === item.path;
-            return (
-              <button
-                key={item.path}
-                onClick={() => {
-                  setActiveTab(item.path);
-                  setLocation(`/${item.path}`);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl mb-1 transition-all ${isActive ? 'bg-zinc-900 text-accent border-l-2 border-accent' : 'hover:bg-zinc-900/50 text-stone hover:text-cream'}`}
-              >
-                <item.icon className="w-4 h-4" />
-                <span className="font-medium text-sm tracking-wide">{item.label}</span>
-                {isActive && (
-                  <div className="ml-auto w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="p-6 border-t border-zinc-800 mt-auto">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center">
-              <Users className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">Rajvansh • Host</div>
-              <div className="text-[10px] text-emerald-400 flex items-center gap-1">
-                <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" /> LIVE
-              </div>
-            </div>
-            <button
-              onClick={() => toast('Logged out', { description: 'Session ended securely.' })}
-              className="text-stone hover:text-red-400 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       <div className="ml-72 min-h-screen">
-        {/* Top Navigation */}
-        <div className="h-20 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-xl fixed right-0 left-72 z-40 flex items-center px-8 justify-between">
-          <div className="flex items-center gap-4">
-            <div className="text-2xl font-semibold tracking-tight">
-              {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
-            </div>
-            <div className="px-3 py-1 bg-zinc-900 rounded-full text-xs text-stone flex items-center gap-1.5">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping" /> 12 properties •
-              98% uptime
-            </div>
-          </div>
+        <Topbar
+          title={routeTitle}
+          searchTerm={searchTerm}
+          onSearch={setSearchTerm}
+          onCreate={() => setIsAddModalOpen(true)}
+        />
 
-          <div className="flex items-center gap-4">
-            <div className="relative w-80">
-              <input
-                type="text"
-                placeholder="Search properties or guests..."
-                className="w-full bg-zinc-900 border border-zinc-800 focus:border-accent rounded-2xl pl-11 py-2.5 text-sm outline-none placeholder:text-stone"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <div className="absolute left-4 top-3.5 text-stone">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 bg-accent hover:bg-amber-600 transition-all text-zinc-950 px-5 py-2.5 rounded-2xl text-sm font-semibold shadow-lg shadow-accent/30"
-            >
-              <Plus className="w-4 h-4" /> NEW PROPERTY
-            </motion.button>
-          </div>
-        </div>
-
-        <div className="pt-20 p-8">
+        <main className="pt-28 p-8">
           <AnimatePresence mode="wait">
-            {/* DASHBOARD */}
-            {activeTab === 'dashboard' && (
-              <motion.div
-                key="dash"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="space-y-8"
-              >
-                <div className="flex justify-between items-end">
-                  <div>
-                    <div className="text-sm text-stone tracking-[2px]">GOOD MORNING, RAJVANSH</div>
-                    <div className="text-6xl font-semibold tracking-tighter -mt-2">
-                      Your empire is thriving.
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-stone">LAST 30 DAYS</div>
-                    <div className="text-4xl font-semibold text-accent">
-                      +${((totalRevenue / 12) * 0.18).toFixed(0)}k
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 gap-5">
-                  {kpiCards.map((kpi, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 flex flex-col justify-between hover:border-accent/50 transition-all group"
-                    >
-                      <div className="flex justify-between">
-                        <kpi.icon className="w-6 h-6 text-accent group-hover:scale-110 transition-transform" />
-                        <div
-                          className={`text-xs px-2.5 py-0.5 rounded-full ${kpi.change.startsWith('+') ? 'bg-emerald-950 text-emerald-400' : 'bg-sky-950 text-sky-400'}`}
-                        >
-                          {kpi.change}
+            <Switch>
+              <Route path="/dashboard">
+                <motion.section
+                  key="dashboard"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-8"
+                >
+                  <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+                    <section className="rounded-[32px] border border-zinc-800 bg-zinc-900/95 p-8 shadow-[0_18px_60px_-40px_rgba(0,0,0,0.7)]">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                          <p className="text-sm uppercase tracking-[0.35em] text-stone">Your command center</p>
+                          <h2 className="mt-3 text-4xl font-semibold tracking-tight text-cream">
+                            Scale revenue without losing operational control.
+                          </h2>
+                        </div>
+                        <div className="rounded-3xl bg-zinc-950 border border-zinc-800 p-5 text-right shadow-xl shadow-black/20">
+                          <p className="text-xs uppercase tracking-[0.35em] text-stone">Last 30 days</p>
+                          <p className="mt-3 text-4xl font-semibold text-accent">+47% growth</p>
+                          <p className="text-sm text-stone">Performance versus last period</p>
                         </div>
                       </div>
+
+                      <div className="mt-8 grid gap-5 md:grid-cols-2">
+                        {kpiCards.map((card) => (
+                          <div
+                            key={card.label}
+                            className="rounded-3xl border border-zinc-800 bg-zinc-950/95 p-6"
+                          >
+                            <p className="text-xs uppercase tracking-[0.35em] text-stone">{card.label}</p>
+                            <p className="mt-4 text-4xl font-semibold tracking-tight text-cream">{card.value}</p>
+                            <p className={`mt-3 text-sm ${card.accent ? 'text-emerald-400' : 'text-stone'}`}>
+                              {card.change} this period
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    <section className="rounded-[32px] border border-zinc-800 bg-zinc-900/95 p-8 shadow-[0_18px_60px_-40px_rgba(0,0,0,0.7)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-stone uppercase tracking-[0.35em]">Revenue Trajectory</p>
+                          <h3 className="mt-3 text-2xl font-semibold text-cream">Forecast</h3>
+                        </div>
+                        <div className="rounded-full bg-zinc-950 px-4 py-2 text-xs uppercase tracking-[0.35em] text-emerald-400">
+                          Trending up
+                        </div>
+                      </div>
+
+                      <div className="mt-8 h-[320px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={revenueData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#c5a26f" stopOpacity={0.45} />
+                                <stop offset="95%" stopColor="#c5a26f" stopOpacity={0.03} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="2 2" stroke="#27272a" />
+                            <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
+                            <YAxis stroke="#6b7280" fontSize={12} tickFormatter={(value) => `$${value / 1000}k`} />
+                            <Tooltip contentStyle={{ backgroundColor: '#111827', border: 'none', borderRadius: 12 }} />
+                            <Area type="monotone" dataKey="revenue" stroke="#c5a26f" strokeWidth={3} fill="url(#revenueGradient)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </section>
+                  </div>
+
+                  <section className="rounded-[32px] border border-zinc-800 bg-zinc-900/95 p-8 shadow-[0_18px_60px_-40px_rgba(0,0,0,0.7)]">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div>
-                        <div className="text-5xl font-semibold tracking-tighter mt-4 mb-1 tabular-nums">
-                          {kpi.value}
-                        </div>
-                        <div className="text-stone text-sm">{kpi.label}</div>
+                        <p className="text-sm uppercase tracking-[0.35em] text-stone">AI Host Insight</p>
+                        <h3 className="mt-3 text-3xl font-semibold text-cream">Superhost Score</h3>
                       </div>
-                    </motion.div>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-5 gap-5">
-                  <div className="col-span-3 bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
-                    <div className="flex justify-between mb-6">
-                      <div>
-                        <div className="font-semibold text-xl">Revenue Trajectory</div>
-                        <div className="text-xs text-stone">
-                          6 month performance • All properties
-                        </div>
-                      </div>
-                      <div className="text-emerald-400 text-sm flex items-center gap-1">
-                        +47% YoY <TrendingUp className="w-4 h-4" />
+                      <div className="rounded-3xl bg-zinc-950/90 px-6 py-5 text-center shadow-xl shadow-black/20">
+                        <p className="text-sm uppercase tracking-[0.35em] text-stone">Current rating</p>
+                        <p className="mt-4 text-6xl font-semibold text-accent">98</p>
+                        <p className="mt-2 text-sm text-stone">Top 2% performance across your portfolio</p>
                       </div>
                     </div>
-                    <div className="h-80 -mx-2">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={revenueData}>
-                          <defs>
-                            <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#c5a26f" stopOpacity={0.4} />
-                              <stop offset="95%" stopColor="#c5a26f" stopOpacity={0.02} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="2 2" stroke="#27272a" />
-                          <XAxis dataKey="month" stroke="#52525b" fontSize={11} />
-                          <YAxis
-                            stroke="#52525b"
-                            fontSize={11}
-                            tickFormatter={(v) => `$${v / 1000}k`}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: '#18181b',
-                              border: 'none',
-                              borderRadius: '8px',
-                            }}
-                          />
-                          <Area
-                            type="natural"
-                            dataKey="revenue"
-                            stroke="#c5a26f"
-                            strokeWidth={3}
-                            fill="url(#rev)"
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
+
+                    <div className="mt-8 grid gap-4 md:grid-cols-3">
+                      <div className="rounded-3xl border border-zinc-800 bg-zinc-950/90 p-5">
+                        <p className="text-xs uppercase tracking-[0.35em] text-stone">Primary recommendation</p>
+                        <p className="mt-3 text-sm text-cream">Enable dynamic pricing AI to capture demand surges automatically.</p>
+                      </div>
+                      <div className="rounded-3xl border border-zinc-800 bg-zinc-950/90 p-5">
+                        <p className="text-xs uppercase tracking-[0.35em] text-stone">Portfolio health</p>
+                        <p className="mt-3 text-sm text-cream">Your inventory is 92% optimized for high-value guests.</p>
+                      </div>
+                      <div className="rounded-3xl border border-zinc-800 bg-zinc-950/90 p-5">
+                        <p className="text-xs uppercase tracking-[0.35em] text-stone">Demand signal</p>
+                        <p className="mt-3 text-sm text-cream">Recent searches for Bali and Santorini are up 27% week over week.</p>
+                      </div>
+                    </div>
+                  </section>
+                </motion.section>
+              </Route>
+
+              <Route path="/properties">
+                <motion.section
+                  key="properties"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-8"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-sm uppercase tracking-[0.35em] text-stone">Your listings</p>
+                      <h2 className="mt-3 text-4xl font-semibold text-cream">Portfolio overview</h2>
+                      <p className="mt-2 max-w-2xl text-sm text-stone">
+                        Manage listings, pricing, and occupancy in one elegant host dashboard.
+                      </p>
+                    </div>
+                    <div className="rounded-3xl border border-zinc-800 bg-zinc-950/95 p-4 text-sm text-cream">
+                      {properties.length} active properties • Average occupancy {avgOccupancy}%
                     </div>
                   </div>
 
-                  <div className="col-span-2 bg-zinc-900 border border-zinc-800 rounded-3xl p-8 flex flex-col">
-                    <div className="font-semibold text-xl mb-6">AI Host Insight</div>
-                    <div className="flex-1 flex flex-col justify-center">
-                      <div className="text-7xl mb-4">98</div>
-                      <div className="text-2xl font-medium tracking-tight">Superhost Score</div>
-                      <div className="text-stone mt-1">
-                        You are in the global top 2%. Your response time and guest satisfaction are
-                        elite.
-                      </div>
-                    </div>
-                    <div className="mt-auto pt-6 border-t border-zinc-800 text-xs text-stone flex items-center gap-2">
-                      <div className="px-2 py-px bg-accent/10 text-accent rounded">
-                        RECOMMENDATION
-                      </div>
-                      Enable dynamic pricing AI for +9% revenue
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-xs text-stone text-center pt-4">
-                  Data refreshes live • Last sync 14s ago
-                </div>
-              </motion.div>
-            )}
-
-            {/* PROPERTIES */}
-            {activeTab === 'properties' && (
-              <motion.div
-                key="props"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-6"
-              >
-                <div className="flex items-end justify-between">
-                  <div>
-                    <div className="text-4xl font-semibold tracking-tighter">Your Portfolio</div>
-                    <div className="text-stone">
-                      {properties.length} active listings • Avg occupancy {avgOccupancy}%
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="text-sm flex items-center gap-2 text-accent hover:text-amber-400 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" /> ADD NEW LISTING
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  <AnimatePresence>
-                    {properties.map((prop, index) => (
-                      <motion.div
-                        key={prop.id}
-                        initial={{ opacity: 0, y: 40 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.04 }}
+                  <div className="grid gap-6 xl:grid-cols-3">
+                    {properties.map((property, index) => (
+                      <motion.button
+                        key={property.id}
+                        type="button"
+                        onClick={() => openEdit(property)}
                         whileHover={{ y: -6 }}
-                        onClick={() => openEdit(prop)}
-                        className="group bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden cursor-pointer hover:border-accent/60 transition-all"
+                        className="group overflow-hidden rounded-[32px] border border-zinc-800 bg-zinc-950/95 text-left shadow-[0_18px_60px_-40px_rgba(0,0,0,0.7)] transition-transform"
                       >
-                        <div className="relative h-72">
+                        <div className="relative h-72 overflow-hidden">
                           <img
-                            src={prop.image}
-                            alt={prop.name}
-                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                            src={property.image}
+                            alt={property.name}
+                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                           />
                           <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 to-transparent" />
-                          <div className="absolute top-4 right-4 px-3 py-1 bg-black/70 backdrop-blur rounded-full text-xs flex items-center gap-1">
-                            <Star className="w-3 h-3 text-amber-400" /> {prop.rating}
-                          </div>
-                          <div className="absolute bottom-4 left-4 right-4">
-                            <div className="font-semibold text-2xl tracking-tight text-white drop-shadow">
-                              {prop.name}
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-white/80">
-                              <MapPin className="w-3.5 h-3.5" /> {prop.location}
+                          <div className="absolute left-5 bottom-5 right-5 text-white">
+                            <div className="text-2xl font-semibold tracking-tight">{property.name}</div>
+                            <div className="mt-2 flex items-center gap-2 text-sm text-white/80">
+                              <MapPin className="h-3.5 w-3.5" /> {property.location}
                             </div>
                           </div>
                         </div>
-                        <div className="p-6 flex justify-between items-end">
-                          <div>
-                            <div className="text-xs text-stone">FROM</div>
-                            <div className="text-3xl font-semibold tabular-nums tracking-tighter">
-                              ${prop.pricePerNight}
+
+                        <div className="space-y-4 p-6">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.35em] text-stone">{property.type}</p>
+                              <p className="mt-2 text-3xl font-semibold text-cream">${property.pricePerNight}</p>
                             </div>
-                            <div className="text-xs -mt-1 text-stone">per night</div>
+                            <div className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-3 py-2 text-sm text-emerald-400">
+                              <Star className="h-4 w-4" /> {property.rating.toFixed(2)}
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-emerald-400 text-sm font-medium">
-                              {prop.occupancy}% occupied
+
+                          <div>
+                            <div className="flex items-center justify-between text-xs uppercase tracking-[0.35em] text-stone">
+                              <span>Occupancy</span>
+                              <span>{property.occupancy}%</span>
                             </div>
-                            <div className="h-1.5 w-24 bg-zinc-800 rounded mt-1.5 overflow-hidden">
+                            <div className="mt-2 h-2 rounded-full bg-zinc-800">
                               <div
-                                className="h-full bg-gradient-to-r from-accent to-amber-400"
-                                style={{ width: `${prop.occupancy}%` }}
+                                className="h-full rounded-full bg-gradient-to-r from-accent to-amber-400"
+                                style={{ width: `${property.occupancy}%` }}
                               />
                             </div>
                           </div>
                         </div>
-                      </motion.div>
+                      </motion.button>
                     ))}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            )}
+                  </div>
+                </motion.section>
+              </Route>
 
-            {/* BOOKINGS */}
-            {activeTab === 'bookings' && (
-              <motion.div
-                key="book"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-6"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-4xl font-semibold tracking-tighter">Upcoming Stays</div>
-                  <div className="text-sm text-stone">{filteredBookings.length} results</div>
-                </div>
+              <Route path="/bookings">
+                <motion.section
+                  key="bookings"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-8"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-sm uppercase tracking-[0.35em] text-stone">Booked stays</p>
+                      <h2 className="mt-3 text-4xl font-semibold text-cream">Upcoming reservations</h2>
+                    </div>
+                    <p className="text-sm text-stone">{filteredBookings.length} active bookings</p>
+                  </div>
 
-                <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-zinc-800 text-xs text-stone uppercase tracking-widest">
-                        <th className="py-5 px-8 text-left font-normal">GUEST</th>
-                        <th className="py-5 px-8 text-left font-normal">PROPERTY</th>
-                        <th className="py-5 px-8 text-left font-normal">DATES</th>
-                        <th className="py-5 px-8 text-right font-normal">AMOUNT</th>
-                        <th className="py-5 px-8 text-center font-normal">STATUS</th>
-                        <th className="py-5 px-8 w-12" />
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-800 text-sm">
-                      {filteredBookings.length > 0 ? (
-                        filteredBookings.map((booking, i) => (
-                          <tr key={i} className="hover:bg-zinc-950/50 transition-colors">
-                            <td className="py-6 px-8 font-medium">{booking.guest}</td>
-                            <td className="py-6 px-8 text-stone">{booking.property}</td>
-                            <td className="py-6 px-8 font-mono text-xs text-stone">
-                              {booking.dates}
-                            </td>
-                            <td className="py-6 px-8 text-right font-semibold tabular-nums">
-                              ${booking.amount.toLocaleString()}
-                            </td>
-                            <td className="py-6 px-8">
-                              <div
-                                className={`inline-flex items-center justify-center px-4 py-px rounded-full text-xs font-medium ${booking.status === 'confirmed' ? 'bg-emerald-950 text-emerald-400' : booking.status === 'pending' ? 'bg-amber-950 text-amber-400' : 'bg-red-950 text-red-400'}`}
-                              >
-                                {booking.status}
-                              </div>
-                            </td>
-                            <td className="py-6 px-8 text-right">
-                              <button
-                                onClick={() =>
-                                  toast.info('Booking details opened in new tab (demo)')
-                                }
-                                className="text-xs text-stone hover:text-accent"
-                              >
-                                DETAILS →
-                              </button>
+                  <div className="overflow-hidden rounded-[32px] border border-zinc-800 bg-zinc-950/95">
+                    <table className="min-w-full border-collapse text-left text-sm">
+                      <thead className="bg-zinc-900/80 text-xs uppercase tracking-[0.35em] text-stone">
+                        <tr>
+                          <th className="px-6 py-5">Guest</th>
+                          <th className="px-6 py-5">Property</th>
+                          <th className="px-6 py-5">Dates</th>
+                          <th className="px-6 py-5 text-right">Amount</th>
+                          <th className="px-6 py-5">Status</th>
+                          <th className="px-6 py-5" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-800">
+                        {filteredBookings.length > 0 ? (
+                          filteredBookings.map((booking) => (
+                            <tr key={booking.id} className="transition-colors hover:bg-zinc-900/70">
+                              <td className="px-6 py-5 font-medium text-cream">{booking.guest}</td>
+                              <td className="px-6 py-5 text-stone">{booking.property}</td>
+                              <td className="px-6 py-5 text-stone">{booking.dates}</td>
+                              <td className="px-6 py-5 text-right font-semibold">${booking.amount.toLocaleString()}</td>
+                              <td className="px-6 py-5">
+                                <span
+                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                                    booking.status === 'confirmed'
+                                      ? 'bg-emerald-950 text-emerald-400'
+                                      : booking.status === 'pending'
+                                      ? 'bg-amber-950 text-amber-400'
+                                      : 'bg-red-950 text-red-400'
+                                  }`}
+                                >
+                                  {booking.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-5 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => toast('Opened booking details.')}
+                                  className="text-sm text-accent hover:text-amber-400"
+                                >
+                                  Details →
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-14 text-center text-stone">
+                              No bookings match your search.
                             </td>
                           </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={6} className="py-12 text-center text-stone">
-                            No matches found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="text-center text-xs text-stone pt-4">
-                  All times in host local • Payments processed via Stripe Connect
-                </div>
-              </motion.div>
-            )}
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </motion.section>
+              </Route>
 
-            {/* ANALYTICS */}
-            {activeTab === 'analytics' && (
-              <motion.div
-                key="analytics"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-8"
-              >
-                <div className="text-4xl font-semibold tracking-tighter mb-2">
-                  Performance Intelligence
-                </div>
-                <div className="text-stone max-w-md">
-                  Real-time metrics across your portfolio. Powered by predictive models.
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
-                    <div className="font-semibold mb-6 flex items-center justify-between">
-                      Property Mix <span className="text-xs text-stone">THIS SEASON</span>
-                    </div>
-                    <div className="h-80 flex items-center justify-center">
-                      <ResponsiveContainer width="100%" height={280}>
-                        <PieChart>
-                          <Pie
-                            data={pieData}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={110}
-                            innerRadius={72}
-                          >
-                            {pieData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-xs mt-4">
-                      {pieData.map((d, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <div className="w-3 h-px" style={{ background: d.fill }} /> {d.name}{' '}
-                          <span className="text-stone ml-auto">{d.value}%</span>
+              <Route path="/analytics">
+                <motion.section
+                  key="analytics"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-8"
+                >
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <section className="rounded-[32px] border border-zinc-800 bg-zinc-900/95 p-8 shadow-[0_18px_60px_-40px_rgba(0,0,0,0.7)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm uppercase tracking-[0.35em] text-stone">Property mix</p>
+                          <h3 className="mt-3 text-2xl font-semibold text-cream">This season</h3>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
-                    <div className="font-semibold mb-6">Host Excellence Metrics</div>
-                    <div className="h-80">
-                      <ResponsiveContainer>
-                        <BarChart data={barData}>
-                          <CartesianGrid strokeDasharray="2 2" stroke="#27272a" />
-                          <XAxis dataKey="name" stroke="#52525b" fontSize={11} />
-                          <YAxis domain={[60, 100]} stroke="#52525b" />
-                          <Tooltip contentStyle={{ background: '#18181b', border: 'none' }} />
-                          <Bar dataKey="value" fill="#c5a26f" radius={6} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* SETTINGS */}
-            {activeTab === 'settings' && (
-              <motion.div
-                key="settings"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="max-w-2xl space-y-10"
-              >
-                <div>
-                  <div className="text-4xl font-semibold tracking-tighter">
-                    Account & Preferences
-                  </div>
-                  <div className="text-stone mt-2">
-                    Manage your Superhost identity and platform integrations.
-                  </div>
-                </div>
-
-                <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 space-y-8">
-                  <div className="flex items-center justify-between border-b border-zinc-800 pb-6">
-                    <div>
-                      <div className="font-medium">Dynamic Pricing AI</div>
-                      <div className="text-sm text-stone">
-                        Automatically optimize rates based on demand signals
+                        <div className="rounded-full bg-zinc-950/90 px-4 py-2 text-xs uppercase tracking-[0.35em] text-stone">
+                          Inventory split
+                        </div>
                       </div>
-                    </div>
-                    <div
-                      className="w-11 h-6 bg-accent rounded-full relative cursor-pointer"
-                      onClick={() => toast.success('AI pricing enabled')}
-                    >
-                      <div className="absolute right-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow" />
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between border-b border-zinc-800 pb-6">
-                    <div>
-                      <div className="font-medium">Instant Book for Top Guests</div>
-                      <div className="text-sm text-stone">
-                        Skip approval for 5+ star repeat visitors
+                      <div className="mt-8 h-[340px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} innerRadius={70}>
+                              {pieData.map((entry) => (
+                                <Cell key={entry.name} fill={entry.fill} />
+                              ))}
+                            </Pie>
+                            <Tooltip contentStyle={{ backgroundColor: '#111827', border: 'none', borderRadius: 12 }} />
+                          </PieChart>
+                        </ResponsiveContainer>
                       </div>
-                    </div>
-                    <div
-                      className="w-11 h-6 bg-zinc-700 rounded-full relative cursor-pointer"
-                      onClick={() => toast('Preference saved')}
-                    >
-                      <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow" />
-                    </div>
-                  </div>
 
+                      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                        {pieData.map((entry) => (
+                          <div key={entry.name} className="flex items-center gap-3 rounded-3xl border border-zinc-800 bg-zinc-950/90 p-4">
+                            <span className="h-3 w-3 rounded-full" style={{ background: entry.fill }} />
+                            <div>
+                              <p className="text-sm text-cream">{entry.name}</p>
+                              <p className="text-xs text-stone">{entry.value}%</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    <section className="rounded-[32px] border border-zinc-800 bg-zinc-900/95 p-8 shadow-[0_18px_60px_-40px_rgba(0,0,0,0.7)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm uppercase tracking-[0.35em] text-stone">Host excellence</p>
+                          <h3 className="mt-3 text-2xl font-semibold text-cream">High-value metrics</h3>
+                        </div>
+                        <div className="rounded-full bg-zinc-950/90 px-4 py-2 text-xs uppercase tracking-[0.35em] text-stone">
+                          Live scorecard
+                        </div>
+                      </div>
+
+                      <div className="mt-8 h-[340px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={barData} margin={{ left: -20, right: 10 }}>
+                            <CartesianGrid strokeDasharray="2 2" stroke="#27272a" />
+                            <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
+                            <YAxis domain={[60, 100]} stroke="#6b7280" fontSize={12} />
+                            <Tooltip contentStyle={{ backgroundColor: '#111827', border: 'none', borderRadius: 12 }} />
+                            <Bar dataKey="value" fill="#c5a26f" radius={[8, 8, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </section>
+                  </div>
+                </motion.section>
+              </Route>
+
+              <Route path="/settings">
+                <motion.section
+                  key="settings"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-10"
+                >
                   <div>
-                    <label className="text-xs text-stone block mb-2">NOTIFICATION EMAIL</label>
-                    <input
-                      type="email"
-                      defaultValue="rajvansh@superhostos.com"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-sm focus:border-accent outline-none"
-                    />
+                    <p className="text-sm uppercase tracking-[0.35em] text-stone">Platform settings</p>
+                    <h2 className="mt-3 text-4xl font-semibold text-cream">Account & integrations</h2>
+                    <p className="mt-3 max-w-2xl text-sm text-stone">
+                      Configure AI preferences, notifications, and channel manager connections.
+                    </p>
                   </div>
 
-                  <button
-                    onClick={() =>
-                      toast.success('Settings synced', {
-                        description: 'All platforms updated in realtime.',
-                      })
-                    }
-                    className="mt-4 w-full py-4 bg-white text-zinc-950 font-semibold rounded-2xl hover:bg-zinc-100 active:scale-[0.985] transition-all"
-                  >
-                    SAVE PREFERENCES
-                  </button>
-                </div>
+                  <div className="rounded-[32px] border border-zinc-800 bg-zinc-900/95 p-8 shadow-[0_18px_60px_-40px_rgba(0,0,0,0.7)] space-y-8">
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <div className="rounded-3xl border border-zinc-800 bg-zinc-950/90 p-5">
+                        <p className="text-sm font-semibold text-cream">Dynamic Pricing AI</p>
+                        <p className="mt-3 text-sm text-stone">Hone rates automatically to capture demand spikes across all channels.</p>
+                      </div>
+                      <div className="rounded-3xl border border-zinc-800 bg-zinc-950/90 p-5">
+                        <p className="text-sm font-semibold text-cream">Instant Book for VIPs</p>
+                        <p className="mt-3 text-sm text-stone">Auto-approve your preferred repeat guests and boost loyalty.</p>
+                      </div>
+                    </div>
 
-                <div className="text-center text-[10px] text-stone">
-                  Superhostos v4.2.1 • Built for the 0.1% of hosts who treat this like
-                  infrastructure
-                </div>
-              </motion.div>
-            )}
+                    <div className="grid gap-4">
+                      <div>
+                        <label className="block text-xs uppercase tracking-[0.35em] text-stone">Notification email</label>
+                        <input
+                          defaultValue="rajvansh@superhostos.com"
+                          className="mt-2 w-full rounded-3xl border border-zinc-800 bg-zinc-950/90 px-5 py-3 text-sm text-cream outline-none focus:border-accent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs uppercase tracking-[0.35em] text-stone">Connected integrations</label>
+                        <div className="mt-2 flex flex-wrap gap-3">
+                          <span className="rounded-2xl border border-zinc-800 bg-zinc-950/90 px-4 py-2 text-sm text-cream">Stripe</span>
+                          <span className="rounded-2xl border border-zinc-800 bg-zinc-950/90 px-4 py-2 text-sm text-cream">Airbnb</span>
+                          <span className="rounded-2xl border border-zinc-800 bg-zinc-950/90 px-4 py-2 text-sm text-cream">Booking.com</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => toast.success('Settings synced in realtime.')}
+                      className="w-full rounded-3xl bg-cream px-6 py-4 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100"
+                    >
+                      Save preferences
+                    </button>
+                  </div>
+
+                  <p className="text-center text-xs text-stone">Superhostos v4.2.1 • Built to scale hospitality operations.</p>
+                </motion.section>
+              </Route>
+            </Switch>
           </AnimatePresence>
-        </div>
+        </main>
       </div>
 
-      {/* Edit Property Modal */}
+      {(propertiesLoading || bookingsLoading) && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70">
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-950/95 px-8 py-6 text-center">
+            <div className="mb-3 text-lg font-semibold">Refreshing host data</div>
+            <div className="h-2 w-48 overflow-hidden rounded-full bg-zinc-800">
+              <div className="h-full w-full animate-pulse bg-accent" />
+            </div>
+          </div>
+        </div>
+      )}
+
       <AnimatePresence>
         {isModalOpen && selectedProperty && (
           <div
-            className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-6"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-6"
             onClick={() => setIsModalOpen(false)}
           >
             <motion.div
-              initial={{ scale: 0.96, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-zinc-900 border border-zinc-700 rounded-3xl w-full max-w-md overflow-hidden"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              onClick={(event) => event.stopPropagation()}
+              className="w-full max-w-xl overflow-hidden rounded-[36px] border border-zinc-800 bg-zinc-950/95 p-8"
             >
-              <div className="p-8">
-                <div className="text-xl font-semibold mb-1">Edit {selectedProperty.name}</div>
-                <div className="text-xs text-stone mb-6">
-                  Changes propagate to Airbnb, Booking.com & VRBO instantly
-                </div>
-
-                <form onSubmit={form.handleSubmit(handleUpdateProperty)} className="space-y-5">
-                  <div>
-                    <label className="text-xs text-stone">PROPERTY NAME</label>
-                    <input
-                      {...form.register('name')}
-                      className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-sm focus:border-accent"
-                    />
-                    {form.formState.errors.name && (
-                      <p className="text-red-400 text-xs mt-1">
-                        {form.formState.errors.name.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs text-stone">LOCATION</label>
-                      <input
-                        {...form.register('location')}
-                        className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-sm focus:border-accent"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-stone">PRICE / NIGHT (USD)</label>
-                      <input
-                        type="number"
-                        {...form.register('pricePerNight', { valueAsNumber: true })}
-                        className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-sm focus:border-accent"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs text-stone">BEDROOMS</label>
-                      <input
-                        type="number"
-                        {...form.register('bedrooms', { valueAsNumber: true })}
-                        className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-sm focus:border-accent"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-stone">TYPE</label>
-                      <select
-                        {...form.register('type')}
-                        className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-sm focus:border-accent"
-                      >
-                        <option value="Villa">Villa</option>
-                        <option value="Penthouse">Penthouse</option>
-                        <option value="Estate">Estate</option>
-                        <option value="Chalet">Chalet</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsModalOpen(false);
-                        setSelectedProperty(null);
-                      }}
-                      className="flex-1 py-3.5 border border-zinc-700 rounded-2xl text-sm hover:bg-zinc-950"
-                    >
-                      CANCEL
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 py-3.5 bg-accent text-zinc-950 font-semibold rounded-2xl"
-                    >
-                      UPDATE LISTING
-                    </button>
-                  </div>
-                </form>
+              <div className="mb-6">
+                <p className="text-xs uppercase tracking-[0.35em] text-stone">Edit listing</p>
+                <h2 className="mt-3 text-3xl font-semibold text-cream">{selectedProperty.name}</h2>
+                <p className="mt-2 text-sm text-stone">Your updates will propagate to all linked distribution channels.</p>
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
-      {/* Add Property Modal */}
-      <AnimatePresence>
-        {isAddModalOpen && (
-          <div
-            className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-6"
-            onClick={() => setIsAddModalOpen(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.96, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-zinc-900 border border-zinc-700 rounded-3xl w-full max-w-md overflow-hidden"
-            >
-              <div className="p-8">
-                <div className="text-xl font-semibold mb-1">Launch New Listing</div>
-                <div className="text-xs text-stone mb-6">
-                  This will be live on all connected OTAs within 60 seconds
+              <form onSubmit={form.handleSubmit(handleUpdateProperty)} className="space-y-5">
+                <div>
+                  <label className="text-xs uppercase tracking-[0.35em] text-stone">Property name</label>
+                  <input
+                    {...form.register('name')}
+                    className="mt-2 w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-cream outline-none focus:border-accent"
+                  />
+                  {form.formState.errors.name && (
+                    <p className="mt-2 text-xs text-red-400">{form.formState.errors.name.message}</p>
+                  )}
                 </div>
 
-                <form onSubmit={form.handleSubmit(handleAddProperty)} className="space-y-5">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-xs text-stone">PROPERTY NAME</label>
-                    <input
-                      {...form.register('name')}
-                      placeholder="Serenity Villa"
-                      className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-sm focus:border-accent placeholder:text-stone/50"
-                    />
-                    {form.formState.errors.name && (
-                      <p className="text-red-400 text-xs mt-1">
-                        {form.formState.errors.name.message}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-stone">LOCATION</label>
+                    <label className="text-xs uppercase tracking-[0.35em] text-stone">Location</label>
                     <input
                       {...form.register('location')}
-                      placeholder="Mykonos, Greece"
-                      className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-sm focus:border-accent placeholder:text-stone/50"
+                      className="mt-2 w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-cream outline-none focus:border-accent"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs text-stone">PRICE / NIGHT</label>
-                      <input
-                        type="number"
-                        {...form.register('pricePerNight', { valueAsNumber: true })}
-                        defaultValue={800}
-                        className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-sm focus:border-accent"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-stone">BEDROOMS</label>
-                      <input
-                        type="number"
-                        {...form.register('bedrooms', { valueAsNumber: true })}
-                        defaultValue={4}
-                        className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-sm focus:border-accent"
-                      />
-                    </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.35em] text-stone">Price / night</label>
+                    <input
+                      type="number"
+                      {...form.register('pricePerNight', { valueAsNumber: true })}
+                      className="mt-2 w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-cream outline-none focus:border-accent"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.35em] text-stone">Bedrooms</label>
+                    <input
+                      type="number"
+                      {...form.register('bedrooms', { valueAsNumber: true })}
+                      className="mt-2 w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-cream outline-none focus:border-accent"
+                    />
                   </div>
                   <div>
-                    <label className="text-xs text-stone">PROPERTY TYPE</label>
+                    <label className="text-xs uppercase tracking-[0.35em] text-stone">Type</label>
                     <select
                       {...form.register('type')}
-                      className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-sm focus:border-accent"
+                      className="mt-2 w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-cream outline-none focus:border-accent"
                     >
                       <option value="Villa">Villa</option>
                       <option value="Penthouse">Penthouse</option>
@@ -997,29 +683,119 @@ export default function Superhostos() {
                       <option value="Chalet">Chalet</option>
                     </select>
                   </div>
+                </div>
 
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setIsAddModalOpen(false)}
-                      className="flex-1 py-3.5 border border-zinc-700 rounded-2xl text-sm hover:bg-zinc-950"
-                    >
-                      CANCEL
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 py-3.5 bg-accent text-zinc-950 font-semibold rounded-2xl"
-                    >
-                      LAUNCH LISTING
-                    </button>
-                  </div>
-                </form>
-              </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      setSelectedProperty(null);
+                    }}
+                    className="w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-stone transition hover:bg-zinc-950"
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="w-full rounded-3xl bg-accent px-5 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-amber-400">
+                    Update listing
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-      <SpeedInsights />
+
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-6"
+            onClick={() => setIsAddModalOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              onClick={(event) => event.stopPropagation()}
+              className="w-full max-w-xl overflow-hidden rounded-[36px] border border-zinc-800 bg-zinc-950/95 p-8"
+            >
+              <div className="mb-6">
+                <p className="text-xs uppercase tracking-[0.35em] text-stone">Launch new listing</p>
+                <h2 className="mt-3 text-3xl font-semibold text-cream">Publish new property</h2>
+                <p className="mt-2 text-sm text-stone">The listing will be prepared for OTA syndication and revenue optimization.</p>
+              </div>
+
+              <form onSubmit={form.handleSubmit(handleAddProperty)} className="space-y-5">
+                <div>
+                  <label className="text-xs uppercase tracking-[0.35em] text-stone">Property name</label>
+                  <input
+                    {...form.register('name')}
+                    placeholder="Serenity Villa"
+                    className="mt-2 w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-cream outline-none focus:border-accent"
+                  />
+                  {form.formState.errors.name && (
+                    <p className="mt-2 text-xs text-red-400">{form.formState.errors.name.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs uppercase tracking-[0.35em] text-stone">Location</label>
+                  <input
+                    {...form.register('location')}
+                    placeholder="Mykonos, Greece"
+                    className="mt-2 w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-cream outline-none focus:border-accent"
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.35em] text-stone">Price / night</label>
+                    <input
+                      type="number"
+                      {...form.register('pricePerNight', { valueAsNumber: true })}
+                      className="mt-2 w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-cream outline-none focus:border-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-[0.35em] text-stone">Bedrooms</label>
+                    <input
+                      type="number"
+                      {...form.register('bedrooms', { valueAsNumber: true })}
+                      className="mt-2 w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-cream outline-none focus:border-accent"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs uppercase tracking-[0.35em] text-stone">Property type</label>
+                  <select
+                    {...form.register('type')}
+                    className="mt-2 w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-cream outline-none focus:border-accent"
+                  >
+                    <option value="Villa">Villa</option>
+                    <option value="Penthouse">Penthouse</option>
+                    <option value="Estate">Estate</option>
+                    <option value="Chalet">Chalet</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="w-full rounded-3xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm text-stone transition hover:bg-zinc-950"
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="w-full rounded-3xl bg-accent px-5 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-amber-400">
+                    Launch listing
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

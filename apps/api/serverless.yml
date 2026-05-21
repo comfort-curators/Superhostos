@@ -1,0 +1,66 @@
+service: superhostos-api
+
+frameworkVersion: '4'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  environment:
+    NODE_ENV: ${self:provider.stage}
+    API_PORT: 8080
+    DATABASE_URL: ${ssm:/superhostos/${self:provider.stage}/database_url~true}
+    REDIS_URL: ${ssm:/superhostos/${self:provider.stage}/redis_url~true}
+  httpApi:
+    cors: true
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParameters
+            - ssm:GetParameter
+          Resource: arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/superhostos/*
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: '*'
+
+functions:
+  api:
+    handler: dist/lambda.handler
+    timeout: 30
+    memorySize: 512
+    events:
+      - httpApi:
+          path: '{proxy+}'
+          method: ANY
+      - httpApi:
+          path: /
+          method: ANY
+
+package:
+  individually: true
+  patterns:
+    - '!node_modules/**'
+    - '!dist/**'
+    - 'dist/**'
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+  - serverless-dynamodb-local
+
+custom:
+  esbuild:
+    bundle: true
+    minify: true
+    target: node20
+    format: esm
+    exclude:
+      - express
+      - pino
+      - pino-http

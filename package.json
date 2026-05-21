@@ -9,7 +9,13 @@
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "lint": "biome check --write --unsafe",
-    "clean": "turbo clean"
+    "clean": "turbo clean",
+    "start": "pnpm --filter=@superhostos/api start",
+    "start:dev": "pnpm dev",
+    "build:api": "pnpm --filter=@superhostos/api build",
+    "build:web": "pnpm --filter=@superhostos/web build",
+    "amplify:build": "pnpm install && pnpm build",
+    "amplify:start": "pnpm --filter=@superhostos/api start"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
