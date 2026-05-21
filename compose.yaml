@@ -1,0 +1,6 @@
+services:
+  superhostos:
+    image: superhostos
+    build:
+      context: .
+      dockerfile: ./Dockerfile
