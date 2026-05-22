@@ -25,7 +25,7 @@ const icons = {
 
 export function Sidebar({ activeTab, onNavigate, onLogout }: SidebarProps) {
   return (
-    <aside className="fixed left-0 top-0 z-50 h-full w-72 border-r border-zinc-800 bg-zinc-950 text-cream">
+    <aside className="hidden md:fixed md:left-0 md:top-0 md:z-50 md:h-full md:w-72 md:border-r md:border-zinc-800 md:bg-zinc-950 md:text-cream">
       <div className="flex h-20 items-center gap-3 border-b border-zinc-800 px-8">
         <div className="grid h-11 w-11 place-items-center rounded-2xl bg-accent text-zinc-950 text-2xl font-bold">S</div>
         <div>

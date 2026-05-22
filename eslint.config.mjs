@@ -1,13 +1,14 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import next from 'eslint-config-next';
 import { defineConfig } from 'eslint/config';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-export default defineConfig([
-  {
-    extends: [...next],
-  },
-]);
+export default defineConfig({
+  root: true,
+  env: { browser: true, es2021: true },
+  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
+  settings: { react: { version: 'detect' } },
+  extends: [
+    'eslint:recommended',
+    'plugin:react/recommended',
+    'plugin:@typescript-eslint/recommended'
+  ],
+  rules: {},
+});

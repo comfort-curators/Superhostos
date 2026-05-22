@@ -205,7 +205,7 @@ export default function App() {
         onLogout={() => toast('Session ended securely.', { description: 'You are logged out from the demo.' })}
       />
 
-      <div className="ml-72 min-h-screen">
+      <div className="md:ml-72 min-h-screen">
         <Topbar
           title={routeTitle}
           searchTerm={searchTerm}

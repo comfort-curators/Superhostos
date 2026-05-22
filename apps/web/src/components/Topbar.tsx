@@ -10,7 +10,7 @@ type TopbarProps = {
 
 export function Topbar({ searchTerm, onSearch, onCreate, title }: TopbarProps) {
   return (
-    <header className="fixed right-0 left-72 z-40 flex items-center justify-between border-b border-zinc-800 bg-zinc-950/95 px-8 py-4 backdrop-blur-xl">
+    <header className="fixed right-0 left-0 md:left-72 z-40 flex items-center justify-between border-b border-zinc-800 bg-zinc-950/95 px-4 md:px-8 py-4 backdrop-blur-xl">
       <div>
         <p className="text-xs uppercase tracking-[0.35em] text-stone">Good morning, Rajvansh</p>
         <h1 className="text-2xl font-semibold tracking-tight text-cream">{title}</h1>
