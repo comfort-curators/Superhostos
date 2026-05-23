@@ -1,29 +1,9 @@
 {
   "name": "superhostos",
-  "version": "0.1.0",
   "private": true,
-  "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "version": "1.0.0",
   "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "typecheck": "turbo typecheck",
-    "lint": "biome check --write --unsafe",
-    "clean": "turbo clean",
-    "start": "pnpm --filter=@superhostos/api start",
-    "start:dev": "pnpm dev",
-    "build:api": "pnpm --filter=@superhostos/api build",
-    "build:web": "pnpm --filter=@superhostos/web build",
-    "amplify:build": "pnpm install && pnpm build",
-    "amplify:start": "pnpm --filter=@superhostos/api start"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "turbo": "^2.3.3",
-    "typescript": "^5.9.3"
-  },
-  "packageManager": "pnpm@9.15.0",
-  "engines": {
-    "node": "20.x"
+    "dev:api": "pnpm --filter @superhostos/api dev",
+    "build:api": "pnpm --filter @superhostos/api build"
   }
 }

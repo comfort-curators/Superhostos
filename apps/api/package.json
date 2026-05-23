@@ -1,30 +1,9 @@
 {
-  "name": "@superhostos/api",
-  "version": "0.1.0",
+  "name": "superhostos",
   "private": true,
-  "type": "module",
+  "version": "1.0.0",
   "scripts": {
-    "dev": "node --watch src/index.ts",
-    "build": "NODE_ENV=production node build.mjs",
-    "start": "node dist/index.js",
-    "start:dev": "node --watch dist/index.js",
-    "typecheck": "tsc --noEmit",
-    "typecheck:watch": "tsc --noEmit --watch",
-    "clean": "rm -rf dist tsconfig.tsbuildinfo",
-    "prebuild": "pnpm run typecheck"
-  },
-  "dependencies": {
-    "express": "^5.0.1",
-    "pino": "^9.6.0",
-    "pino-http": "^10.4.0",
-    "zod": "^3.24.1",
-    "@superhostos/db": "workspace:*"
-  },
-  "devDependencies": {
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.10.5",
-    "esbuild": "^0.24.2",
-    "pino-pretty": "^11.3.0",
-    "typescript": "^5.9.3"
+    "dev:api": "pnpm --filter @superhostos/api dev",
+    "build:api": "pnpm --filter @superhostos/api build"
   }
 }

@@ -1,149 +1,68 @@
-import express, { Express, Request, Response, NextFunction } from "express";
-import pinoHttp from "pino-http";
-import { z } from "zod";
+import express from 'express';
+import cors from 'cors';
+import pino from 'pino';
+import pinoHttp from 'pino-http';
+import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
 
-// Initialize Express app
-const app: Express = express();
+dotenv.config();
 
-// Configuration from environment
-const PORT = parseInt(process.env.API_PORT || "8080", 10);
-const HOST = process.env.API_HOST || "0.0.0.0";
-const NODE_ENV = process.env.NODE_ENV || "development";
+const app = express();
+const PORT = process.env.PORT || 8080;
 
-// Logger middleware
-const logger = pinoHttp({
-  level: NODE_ENV === "production" ? "info" : "debug",
-  transport: NODE_ENV === "development" ? { target: "pino-pretty" } : undefined,
-});
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
-app.use(logger);
+app.use(pinoHttp({ logger }));
 
-// Middleware
+// CORS - Vercel frontend + local dev
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://superhostos.com',
+  'https://www.superhostos.com',
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
+
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// CORS configuration
-app.use((req: Request, res: Response, next: NextFunction) => {
-  const allowedOrigins = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    process.env.FRONTEND_URL || "https://superhostos.com",
-  ];
+// JWT Middleware
+export const verifyJWT = (req: any, res: any, next: any) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token provided' });
 
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-  }
-
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-  );
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-
-  if (req.method === "OPTIONS") {
-    res.sendStatus(204);
-    return;
-  }
-
-  next();
-});
-
-// Health check endpoint
-app.get("/health", (req: Request, res: Response) => {
-  res.status(200).json({
-    status: "healthy",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: NODE_ENV,
-  });
-});
-
-// Ready check endpoint for Amplify
-app.get("/ready", async (req: Request, res: Response) => {
   try {
-    // Check database connection here if available
-    res.status(200).json({
-      status: "ready",
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    res.status(503).json({
-      status: "not-ready",
-      error: "Service unavailable",
-    });
+    req.user = jwt.verify(token, process.env.JWT_SECRET!);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
   }
+};
+
+// Routes
+app.get('/api/healthz', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API Routes
-const apiRouter = express.Router();
-
-// Example endpoint
-apiRouter.get("/properties", (req: Request, res: Response) => {
-  res.json({
-    properties: [],
-    message: "Properties endpoint - connect to database",
-  });
+app.get('/api/protected', verifyJWT, (req, res) => {
+  res.json({ message: 'You are authenticated', user: (req as any).user });
 });
 
-app.use("/api", apiRouter);
-
-// Error handling middleware
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  const status = (err as any).status || 500;
-  const message = err.message || "Internal Server Error";
-
-  console.error(`[${new Date().toISOString()}] Error:`, {
-    status,
-    message,
-    path: req.path,
-    method: req.method,
-  });
-
-  res.status(status).json({
-    error: {
-      message,
-      status,
-      path: req.path,
-      timestamp: new Date().toISOString(),
-    },
-  });
+app.get('/api/properties', (req, res) => {
+  res.json([
+    { id: 'PROP001', name: 'Azure Bay Villa', city: 'Malibu', bedrooms: 4 },
+    { id: 'PROP002', name: 'Alpine Chalet', city: 'Aspen', bedrooms: 6 },
+  ]);
 });
 
-// 404 handler
-app.use((req: Request, res: Response) => {
-  res.status(404).json({
-    error: {
-      message: "Not Found",
-      status: 404,
-      path: req.path,
-    },
-  });
+app.listen(PORT, () => {
+  logger.info(`🚀 API running on port ${PORT}`);
 });
-
-// Start server
-app.listen(PORT, HOST, () => {
-  console.log(
-    `[${new Date().toISOString()}] Server running at http://${HOST}:${PORT}`
-  );
-  console.log(`Environment: ${NODE_ENV}`);
-  console.log(`Health check: http://${HOST}:${PORT}/health`);
-  console.log(`Ready check: http://${HOST}:${PORT}/ready`);
-});
-
-// Graceful shutdown
-process.on("SIGTERM", () => {
-  console.log("SIGTERM signal received: closing HTTP server");
-  process.exit(0);
-});
-
-process.on("SIGINT", () => {
-  console.log("SIGINT signal received: closing HTTP server");
-  process.exit(0);
-});
-
-export default app;
