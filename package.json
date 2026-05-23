@@ -12,7 +12,4 @@
     "turbo": "^2.9.14"
   }
 }
-cat package.json  # verify the field is there
-git add package.json
-git commit -m "chore: add packageManager field"
-git push origin main
+
