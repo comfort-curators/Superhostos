@@ -10,7 +10,7 @@ export default function Properties() {
     <div className="p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-[#1A1914]">Properties</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Properties</h1>
           <p className="text-[#8B7B6B] mt-1">Manage your portfolio</p>
         </div>
         <Button>Add New Property</Button>
@@ -22,8 +22,19 @@ export default function Properties() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {properties.length > 0 ? (
-          properties.map((property) => (
-            <PropertyCard key={property.id} property={property as any} onClick={() => console.log('Open', property.id)} />
+          properties.map((p: any) => (
+            <PropertyCard
+              key={p.id}
+              id={p.id}
+              name={p.name}
+              city={p.city}
+              bedrooms={p.bedrooms}
+              occupancy={p.occupancy}
+              revenue={p.revenue}
+              readinessScore={p.readinessScore}
+              status={p.status}
+              onClick={() => console.log('Open', p.id)}
+            />
           ))
         ) : (
           <p className="text-[#8B7B6B]">No properties yet.</p>
