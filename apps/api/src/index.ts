@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import { env } from './lib/env';
@@ -15,20 +15,27 @@ import { ai_repliesRoutes } from './domains/ai-replies/routes';
 import { analyticsRoutes } from './domains/analytics/routes';
 import { authRoutes } from './domains/auth/routes';
 
-const app = Fastify({ logger: true });
-await app.register(cors, { origin: true });
-await app.register(rateLimit, { max: 200, timeWindow: '1 minute' });
-await app.register(openApiPlugin);
-await app.register(authPlugin);
-app.get('/health', async () => ({ status: 'ok' }));
-await app.register(propertiesRoutes, { prefix: '/v1' });
-await app.register(bookingsRoutes, { prefix: '/v1' });
-await app.register(calendarsRoutes, { prefix: '/v1' });
-await app.register(housekeepingRoutes, { prefix: '/v1' });
-await app.register(maintenanceRoutes, { prefix: '/v1' });
-await app.register(vendorsRoutes, { prefix: '/v1' });
-await app.register(ordersRoutes, { prefix: '/v1' });
-await app.register(ai_repliesRoutes, { prefix: '/v1' });
-await app.register(analyticsRoutes, { prefix: '/v1' });
-await app.register(authRoutes, { prefix: '/v1' });
-await app.listen({ port: env.PORT, host: '0.0.0.0' });
+export async function buildApp(): Promise<FastifyInstance> {
+  const app = Fastify({ logger: true });
+  await app.register(cors, { origin: true });
+  await app.register(rateLimit, { max: 200, timeWindow: '1 minute' });
+  await app.register(openApiPlugin);
+  await app.register(authPlugin);
+  app.get('/health', async () => ({ status: 'ok' }));
+  await app.register(propertiesRoutes, { prefix: '/v1' });
+  await app.register(bookingsRoutes, { prefix: '/v1' });
+  await app.register(calendarsRoutes, { prefix: '/v1' });
+  await app.register(housekeepingRoutes, { prefix: '/v1' });
+  await app.register(maintenanceRoutes, { prefix: '/v1' });
+  await app.register(vendorsRoutes, { prefix: '/v1' });
+  await app.register(ordersRoutes, { prefix: '/v1' });
+  await app.register(ai_repliesRoutes, { prefix: '/v1' });
+  await app.register(analyticsRoutes, { prefix: '/v1' });
+  await app.register(authRoutes, { prefix: '/v1' });
+  return app;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const app = await buildApp();
+  await app.listen({ port: env.PORT, host: '0.0.0.0' });
+}
