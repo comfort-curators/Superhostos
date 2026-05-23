@@ -1,0 +1,9 @@
+www.superhostos.com {
+  encode zstd gzip
+  reverse_proxy web:80
+}
+
+api.superhostos.com {
+  encode zstd gzip
+  reverse_proxy api:4000
+}
