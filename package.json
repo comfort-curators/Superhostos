@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "dev:api": "pnpm --filter @superhostos/api dev",
-    "build:api": "pnpm --filter @superhostos/api build"
+    "dev:web": "pnpm --filter @superhostos/web dev",
+    "build:api": "pnpm --filter @superhostos/api build",
+    "build:web": "pnpm --filter @superhostos/web build"
   }
 }
