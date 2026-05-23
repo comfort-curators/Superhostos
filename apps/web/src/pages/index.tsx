@@ -4,6 +4,7 @@ import { SignInButton } from '@clerk/clerk-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { completeOpsItem, createOpsItem, fetchOpsItems, fetchOpsStats, updateOpsItem, type OpsItemDto, type PropertyDto } from '../api/client';
 import { useProperties } from '../hooks/useProperties';
+import { LoadingSkeleton } from '../components/LoadingSkeleton';
 
 const Shell = ({ title, subtitle }: { title: string; subtitle: string }) => (
   <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
@@ -52,7 +53,7 @@ const OpsPage = ({ title, subtitle, domain }: { title: string; subtitle: string;
           {createMutation.isPending ? 'Creating...' : 'Create'}
         </button>
       </div>
-      {isLoading ? <p>Loading...</p> : null}
+      {isLoading ? <LoadingSkeleton rows={4} /> : null}
       {isError ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-700">Failed loading {domain}.</p> : null}
       <div className="space-y-2">
         {data?.map((item: OpsItemDto) => (
@@ -94,7 +95,7 @@ export const PropertiesPage = () => {
   return (
     <section className="space-y-4 pb-20 md:pb-0">
       <Shell title="Properties" subtitle="Manage listings, status, and operating details." />
-      {isLoading ? <p>Loading properties...</p> : null}
+      {isLoading ? <LoadingSkeleton rows={4} /> : null}
       {isError ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-700">Failed to load properties.</p> : null}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {data?.map((p: PropertyDto) => (

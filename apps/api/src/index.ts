@@ -21,7 +21,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(rateLimit, { max: 200, timeWindow: '1 minute' });
   await app.register(openApiPlugin);
   await app.register(authPlugin);
-  app.get('/health', async () => ({ status: 'ok' }));
+  app.get('/health', async () => ({ status: 'ok', service: 'superhostos-api', timestamp: new Date().toISOString() }));
   await app.register(propertiesRoutes, { prefix: '/v1' });
   await app.register(bookingsRoutes, { prefix: '/v1' });
   await app.register(calendarsRoutes, { prefix: '/v1' });
