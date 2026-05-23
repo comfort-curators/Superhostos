@@ -7,8 +7,16 @@ import { useProperties } from '../hooks/useProperties';
 
 const Shell = ({ title, subtitle }: { title: string; subtitle: string }) => (
   <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
-    <h1 className="text-2xl font-semibold tracking-tight">{title}</h1><p className="mt-1 text-sm text-stone-500">{subtitle}</p>
+    <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+    <p className="mt-1 text-sm text-stone-500">{subtitle}</p>
   </motion.section>
+);
+
+const StatCard = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-2xl border border-stone-200 bg-white p-4">
+    <p className="text-xs text-stone-500">{label}</p>
+    <p className="mt-1 text-xl font-semibold">{value}</p>
+  </div>
 );
 
 const OpsPage = ({ title, subtitle, domain }: { title: string; subtitle: string; domain: string }) => {
@@ -17,22 +25,89 @@ const OpsPage = ({ title, subtitle, domain }: { title: string; subtitle: string;
   const [newTitle, setNewTitle] = useState('');
   const { data, isLoading, isError } = useQuery({ queryKey: [domain, statusFilter], queryFn: () => fetchOpsItems(domain, statusFilter === 'all' ? undefined : statusFilter) });
   const { data: stats } = useQuery({ queryKey: [domain, 'stats'], queryFn: () => fetchOpsStats(domain) });
-  const refresh = () => { void qc.invalidateQueries({ queryKey: [domain] }); };
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: [domain] });
+  };
+
   const createMutation = useMutation({ mutationFn: () => createOpsItem(domain, { title: newTitle, priority: 'medium' }), onSuccess: () => { setNewTitle(''); refresh(); } });
   const completeMutation = useMutation({ mutationFn: (id: string) => completeOpsItem(domain, id), onSuccess: refresh });
   const blockMutation = useMutation({ mutationFn: (id: string) => updateOpsItem(domain, id, { status: 'blocked' }), onSuccess: refresh });
 
-  return <section className="space-y-4"><Shell title={title} subtitle={subtitle} />
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">{['all', 'pending', 'active', 'blocked', 'done'].map((filter) => <button key={filter} type="button" onClick={() => setStatusFilter(filter)} className={`rounded-2xl border px-3 py-2 text-sm ${statusFilter === filter ? 'bg-stone-900 text-white' : 'bg-white'}`}>{filter}</button>)}</div>
-    <div className="rounded-2xl border p-4 text-sm">Total: <strong>{stats?.total ?? 0}</strong> · Pending: {stats?.byStatus.pending ?? 0} · Active: {stats?.byStatus.active ?? 0} · Blocked: {stats?.byStatus.blocked ?? 0} · Done: {stats?.byStatus.done ?? 0}</div>
-    <div className="flex gap-2"><input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={`Add ${title} task`} className="w-full rounded-2xl border px-4 py-2" /><button type="button" disabled={newTitle.trim().length === 0} className="rounded-2xl bg-stone-900 px-4 py-2 text-sm text-white" onClick={() => createMutation.mutate()}>Create</button></div>
-    {isLoading ? <p>Loading...</p> : null}{isError ? <p className="text-rose-600">Failed loading {domain}.</p> : null}
-    <div className="space-y-2">{data?.map((item: OpsItemDto) => <div key={item.id} className="flex items-center justify-between rounded-2xl border p-3"><span>{item.title} · <b>{item.status}</b> · {item.priority}</span><div className="flex gap-2"><button type="button" disabled={item.status === 'done'} className="rounded-xl border px-3 py-1 text-sm" onClick={() => completeMutation.mutate(item.id)}>Complete</button><button type="button" disabled={item.status === 'blocked'} className="rounded-xl border px-3 py-1 text-sm" onClick={() => blockMutation.mutate(item.id)}>Block</button></div></div>)}</div>
-  </section>;
+  return (
+    <section className="space-y-4 pb-20 md:pb-0">
+      <Shell title={title} subtitle={subtitle} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        {['all', 'pending', 'active', 'blocked', 'done'].map((filter) => (
+          <button key={filter} type="button" onClick={() => setStatusFilter(filter)} className={`rounded-2xl border px-3 py-2 text-sm capitalize ${statusFilter === filter ? 'bg-stone-900 text-white' : 'bg-white'}`}>
+            {filter}
+          </button>
+        ))}
+      </div>
+      <div className="rounded-2xl border p-4 text-sm">
+        Total: <strong>{stats?.total ?? 0}</strong> · Pending: {stats?.byStatus.pending ?? 0} · Active: {stats?.byStatus.active ?? 0} · Blocked: {stats?.byStatus.blocked ?? 0} · Done: {stats?.byStatus.done ?? 0}
+      </div>
+      <div className="flex gap-2">
+        <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={`Add ${title} task`} className="w-full rounded-2xl border px-4 py-2" />
+        <button type="button" disabled={newTitle.trim().length === 0 || createMutation.isPending} className="rounded-2xl bg-stone-900 px-4 py-2 text-sm text-white" onClick={() => createMutation.mutate()}>
+          {createMutation.isPending ? 'Creating...' : 'Create'}
+        </button>
+      </div>
+      {isLoading ? <p>Loading...</p> : null}
+      {isError ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-700">Failed loading {domain}.</p> : null}
+      <div className="space-y-2">
+        {data?.map((item: OpsItemDto) => (
+          <div key={item.id} className="flex items-center justify-between rounded-2xl border p-3">
+            <span>{item.title} · <b>{item.status}</b> · {item.priority}</span>
+            <div className="flex gap-2">
+              <button type="button" disabled={item.status === 'done' || completeMutation.isPending} className="rounded-xl border px-3 py-1 text-sm" onClick={() => completeMutation.mutate(item.id)}>Complete</button>
+              <button type="button" disabled={item.status === 'blocked' || blockMutation.isPending} className="rounded-xl border px-3 py-1 text-sm" onClick={() => blockMutation.mutate(item.id)}>Block</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 };
 
-export const DashboardPage = () => <Shell title="Dashboard" subtitle="Portfolio health, occupancy, RevPAR, and operations at a glance." />;
-export const PropertiesPage = () => { const { data } = useProperties(); return <section className="space-y-4"><Shell title="Properties" subtitle="Manage listings, status, and operating details." /><div className="grid grid-cols-1 gap-3 md:grid-cols-2">{data?.map((p: PropertyDto) => <article key={p.id} className="rounded-3xl border border-stone-200 bg-white p-5"><p className="font-medium">{p.name}</p><p className="text-sm text-stone-600">{p.city} · {p.timezone}</p></article>)}</div></section>; };
+export const DashboardPage = () => (
+  <section className="space-y-4 pb-20 md:pb-0">
+    <Shell title="Dashboard" subtitle="Portfolio health, occupancy, RevPAR, and operations at a glance." />
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <StatCard label="Occupancy" value="84%" />
+      <StatCard label="ADR" value="$246" />
+      <StatCard label="RevPAR" value="$206" />
+      <StatCard label="Open Tasks" value="37" />
+    </div>
+    <div className="rounded-2xl border border-stone-200 bg-white p-5">
+      <p className="text-sm font-medium">Today’s Operations Snapshot</p>
+      <ul className="mt-3 space-y-2 text-sm text-stone-600">
+        <li>• 12 turnovers scheduled before 3PM check-in window.</li>
+        <li>• 4 maintenance issues escalated to vendors.</li>
+        <li>• 18 guest threads pending response under 15 minutes SLA.</li>
+      </ul>
+    </div>
+  </section>
+);
+
+export const PropertiesPage = () => {
+  const { data, isLoading, isError } = useProperties();
+  return (
+    <section className="space-y-4 pb-20 md:pb-0">
+      <Shell title="Properties" subtitle="Manage listings, status, and operating details." />
+      {isLoading ? <p>Loading properties...</p> : null}
+      {isError ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-700">Failed to load properties.</p> : null}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {data?.map((p: PropertyDto) => (
+          <article key={p.id} className="rounded-3xl border border-stone-200 bg-white p-5">
+            <p className="font-medium">{p.name}</p>
+            <p className="text-sm text-stone-600">{p.city} · {p.timezone}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 export const PropertyDetailPage = () => <Shell title="Property Detail" subtitle="Operations detail, bookings, cleaning, maintenance, and comms." />;
 export const CalendarPage = () => <OpsPage title="Master Calendar" subtitle="Unified availability and sync controls." domain="calendars" />;
 export const HousekeepingPage = () => <OpsPage title="Housekeeping" subtitle="Daily turns and assignment balancing." domain="housekeeping" />;
