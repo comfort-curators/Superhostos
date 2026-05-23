@@ -1,23 +1,22 @@
 {
   "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "moduleResolution": "bundler",
-    "module": "ESNext",
-    "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "jsx": "react-jsx",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
+    "useUnknownInCatchVariables": true,
     "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
     "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {
-      "@superhostos/*": ["packages/*/src"]
+      "@superhostos/shared": ["packages/shared/src/index.ts"],
+      "@superhostos/db": ["packages/db/src/index.ts"],
+      "@superhostos/api-contracts": ["packages/shared/src/contracts/index.ts"]
     }
-  },
-  "exclude": ["node_modules", "dist"]
+  }
 }

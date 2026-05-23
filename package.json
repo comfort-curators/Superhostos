@@ -1,15 +1,20 @@
 {
   "name": "superhostos",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.12.2",
   "scripts": {
-    "dev:api": "pnpm --filter @superhostos/api dev",
-    "dev:web": "pnpm --filter @superhostos/web dev",
-    "build:api": "pnpm --filter @superhostos/api build",
-    "build:web": "pnpm --filter @superhostos/web build"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "format": "biome check . --write"
   },
   "devDependencies": {
-    "turbo": "^2.9.14"
-  },
-  "packageManager": "pnpm@10.28.0"
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.10.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
 }

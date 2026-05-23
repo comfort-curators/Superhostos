@@ -1,68 +1,34 @@
-import express from 'express';
-import cors from 'cors';
-import pino from 'pino';
-import pinoHttp from 'pino-http';
-import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
+import { env } from './lib/env';
+import { authPlugin } from './plugins/auth';
+import { openApiPlugin } from './plugins/openapi';
+import { propertiesRoutes } from './domains/properties/routes';
+import { bookingsRoutes } from './domains/bookings/routes';
+import { calendarsRoutes } from './domains/calendars/routes';
+import { housekeepingRoutes } from './domains/housekeeping/routes';
+import { maintenanceRoutes } from './domains/maintenance/routes';
+import { vendorsRoutes } from './domains/vendors/routes';
+import { ordersRoutes } from './domains/orders/routes';
+import { ai_repliesRoutes } from './domains/ai-replies/routes';
+import { analyticsRoutes } from './domains/analytics/routes';
+import { authRoutes } from './domains/auth/routes';
 
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 8080;
-
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
-
-app.use(pinoHttp({ logger }));
-
-// CORS - Vercel frontend + local dev
-const allowedOrigins = [
-  'http://localhost:5173',
-  'https://superhostos.com',
-  'https://www.superhostos.com',
-];
-
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-}));
-
-app.use(express.json());
-
-// JWT Middleware
-export const verifyJWT = (req: any, res: any, next: any) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
-
-  try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET!);
-    next();
-  } catch {
-    res.status(401).json({ error: 'Invalid or expired token' });
-  }
-};
-
-// Routes
-app.get('/api/healthz', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-app.get('/api/protected', verifyJWT, (req, res) => {
-  res.json({ message: 'You are authenticated', user: (req as any).user });
-});
-
-app.get('/api/properties', (req, res) => {
-  res.json([
-    { id: 'PROP001', name: 'Azure Bay Villa', city: 'Malibu', bedrooms: 4 },
-    { id: 'PROP002', name: 'Alpine Chalet', city: 'Aspen', bedrooms: 6 },
-  ]);
-});
-
-app.listen(PORT, () => {
-  logger.info(`🚀 API running on port ${PORT}`);
-});
+const app = Fastify({ logger: true });
+await app.register(cors, { origin: true });
+await app.register(rateLimit, { max: 200, timeWindow: '1 minute' });
+await app.register(openApiPlugin);
+await app.register(authPlugin);
+app.get('/health', async () => ({ status: 'ok' }));
+await app.register(propertiesRoutes, { prefix: '/v1' });
+await app.register(bookingsRoutes, { prefix: '/v1' });
+await app.register(calendarsRoutes, { prefix: '/v1' });
+await app.register(housekeepingRoutes, { prefix: '/v1' });
+await app.register(maintenanceRoutes, { prefix: '/v1' });
+await app.register(vendorsRoutes, { prefix: '/v1' });
+await app.register(ordersRoutes, { prefix: '/v1' });
+await app.register(ai_repliesRoutes, { prefix: '/v1' });
+await app.register(analyticsRoutes, { prefix: '/v1' });
+await app.register(authRoutes, { prefix: '/v1' });
+await app.listen({ port: env.PORT, host: '0.0.0.0' });

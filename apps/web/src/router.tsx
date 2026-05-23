@@ -1,17 +1,54 @@
-import { Switch, Route } from 'wouter';
-import Dashboard from './pages/Dashboard';
-import Properties from './pages/Properties';
-import MasterCalendar from './pages/MasterCalendar';
-import Marketplace from './pages/Marketplace';
+import { Redirect, Route, Switch } from 'wouter';
+import { SignedIn, SignedOut, SignIn } from '@clerk/clerk-react';
+import { AppLayout } from './components/layout/AppLayout';
+import {
+  AiReplyPage,
+  AnalyticsPage,
+  CalendarPage,
+  DashboardPage,
+  HousekeepingPage,
+  LoginPage,
+  MaintenancePage,
+  MessagesPage,
+  NotFoundPage,
+  OrdersPage,
+  PropertiesPage,
+  PropertyDetailPage,
+  SettingsPage,
+  VendorsPage
+} from './pages';
 
-export function AppRouter() {
-  return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/properties" component={Properties} />
-      <Route path="/calendar" component={MasterCalendar} />
-      <Route path="/marketplace" component={Marketplace} />
-      <Route>404 - Page not found</Route>
-    </Switch>
-  );
-}
+const ProtectedRoutes = () => (
+  <SignedIn>
+    <AppLayout>
+      <Switch>
+        <Route path="/" component={DashboardPage} />
+        <Route path="/properties" component={PropertiesPage} />
+        <Route path="/properties/:id" component={PropertyDetailPage} />
+        <Route path="/calendar" component={CalendarPage} />
+        <Route path="/housekeeping" component={HousekeepingPage} />
+        <Route path="/maintenance" component={MaintenancePage} />
+        <Route path="/vendors" component={VendorsPage} />
+        <Route path="/orders" component={OrdersPage} />
+        <Route path="/messages" component={MessagesPage} />
+        <Route path="/ai-reply" component={AiReplyPage} />
+        <Route path="/analytics" component={AnalyticsPage} />
+        <Route path="/settings" component={SettingsPage} />
+        <Route component={NotFoundPage} />
+      </Switch>
+    </AppLayout>
+  </SignedIn>
+);
+
+export const AppRouter = () => (
+  <>
+    <Route path="/login" component={LoginPage} />
+    <Route path="/sign-in">{() => <SignIn routing="path" path="/sign-in" />}</Route>
+    <Route>
+      <SignedOut>
+        <Redirect to="/login" />
+      </SignedOut>
+      <ProtectedRoutes />
+    </Route>
+  </>
+);

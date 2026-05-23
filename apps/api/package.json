@@ -1,9 +1,31 @@
 {
-  "name": "superhostos",
-  "private": true,
-  "version": "1.0.0",
+  "name": "@superhostos/api",
+  "version": "0.1.0",
+  "type": "module",
   "scripts": {
-    "dev:api": "pnpm --filter @superhostos/api dev",
-    "build:api": "pnpm --filter @superhostos/api build"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@clerk/backend": "^1.24.0",
+    "@fastify/cors": "^10.0.1",
+    "@fastify/rate-limit": "^10.1.0",
+    "@fastify/swagger": "^9.4.0",
+    "@fastify/swagger-ui": "^5.2.1",
+    "bullmq": "^5.34.0",
+    "fastify": "^5.1.0",
+    "ioredis": "^5.4.1",
+    "pino": "^9.5.0",
+    "zod": "^3.24.1",
+    "@superhostos/db": "workspace:*",
+    "@superhostos/shared": "workspace:*",
+    "fastify-plugin": "^5.0.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.8"
   }
 }
