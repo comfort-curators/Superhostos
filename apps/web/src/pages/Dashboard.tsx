@@ -34,7 +34,6 @@ export default function Dashboard() {
             revenue={p.revenue}
             readinessScore={p.readinessScore}
             status={p.status}
-            onClick={() => console.log('Open', p.id)}
           />
         ))}
       </div>

@@ -33,7 +33,6 @@ export default function Properties() {
               revenue={p.revenue}
               readinessScore={p.readinessScore}
               status={p.status}
-              onClick={() => console.log('Open', p.id)}
             />
           ))
         ) : (
