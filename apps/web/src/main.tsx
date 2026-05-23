@@ -7,17 +7,22 @@ import './index.css';
 
 const queryClient = new QueryClient();
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+const authEnabled = Boolean(clerkKey);
 
-if (!clerkKey) {
-  throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY. Add it to apps/web/.env.local or deployment environment.');
-}
+const app = (
+  <React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <AppRouter authEnabled={authEnabled} />
+    </QueryClientProvider>
+  </React.StrictMode>
+);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <ClerkProvider publishableKey={clerkKey} signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/">
-      <QueryClientProvider client={queryClient}>
-        <AppRouter />
-      </QueryClientProvider>
+  authEnabled ? (
+    <ClerkProvider publishableKey={clerkKey as string} signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/">
+      {app}
     </ClerkProvider>
-  </React.StrictMode>
+  ) : (
+    app
+  )
 );

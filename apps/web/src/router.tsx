@@ -18,29 +18,27 @@ import {
   VendorsPage
 } from './pages';
 
-const ProtectedRoutes = () => (
-  <SignedIn>
-    <AppLayout>
-      <Switch>
-        <Route path="/" component={DashboardPage} />
-        <Route path="/properties" component={PropertiesPage} />
-        <Route path="/properties/:id" component={PropertyDetailPage} />
-        <Route path="/calendar" component={CalendarPage} />
-        <Route path="/housekeeping" component={HousekeepingPage} />
-        <Route path="/maintenance" component={MaintenancePage} />
-        <Route path="/vendors" component={VendorsPage} />
-        <Route path="/orders" component={OrdersPage} />
-        <Route path="/messages" component={MessagesPage} />
-        <Route path="/ai-reply" component={AiReplyPage} />
-        <Route path="/analytics" component={AnalyticsPage} />
-        <Route path="/settings" component={SettingsPage} />
-        <Route component={NotFoundPage} />
-      </Switch>
-    </AppLayout>
-  </SignedIn>
+const ProductRoutes = () => (
+  <AppLayout>
+    <Switch>
+      <Route path="/" component={DashboardPage} />
+      <Route path="/properties" component={PropertiesPage} />
+      <Route path="/properties/:id" component={PropertyDetailPage} />
+      <Route path="/calendar" component={CalendarPage} />
+      <Route path="/housekeeping" component={HousekeepingPage} />
+      <Route path="/maintenance" component={MaintenancePage} />
+      <Route path="/vendors" component={VendorsPage} />
+      <Route path="/orders" component={OrdersPage} />
+      <Route path="/messages" component={MessagesPage} />
+      <Route path="/ai-reply" component={AiReplyPage} />
+      <Route path="/analytics" component={AnalyticsPage} />
+      <Route path="/settings" component={SettingsPage} />
+      <Route component={NotFoundPage} />
+    </Switch>
+  </AppLayout>
 );
 
-export const AppRouter = () => (
+const AuthenticatedRouter = () => (
   <>
     <Route path="/login" component={LoginPage} />
     <Route path="/sign-in">{() => <SignIn routing="path" path="/sign-in" />}</Route>
@@ -48,7 +46,14 @@ export const AppRouter = () => (
       <SignedOut>
         <Redirect to="/login" />
       </SignedOut>
-      <ProtectedRoutes />
+      <SignedIn>
+        <ProductRoutes />
+      </SignedIn>
     </Route>
   </>
 );
+
+const UnauthenticatedRouter = () => <ProductRoutes />;
+
+export const AppRouter = ({ authEnabled }: { authEnabled: boolean }) =>
+  authEnabled ? <AuthenticatedRouter /> : <UnauthenticatedRouter />;
