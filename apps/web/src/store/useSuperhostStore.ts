@@ -1,30 +1,59 @@
 import { create } from 'zustand';
 
-import type { Property, Booking } from '../types';
+export interface Property {
+  id: string;
+  name: string;
+  city: string;
+  bedrooms: number;
+  maxGuests: number;
+  amenities?: string[];
+}
+
+export interface CartItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+}
 
 interface SuperhostState {
   properties: Property[];
-  bookings: Booking[];
+  cart: CartItem[];
   activePropertyId: string | null;
-  cart: any[];
 
-  // Actions
   setProperties: (properties: Property[]) => void;
-  setBookings: (bookings: Booking[]) => void;
   setActiveProperty: (id: string | null) => void;
-  addToCart: (item: any) => void;
+  addToCart: (item: Omit<CartItem, 'quantity'>) => void;
+  removeFromCart: (id: number) => void;
   clearCart: () => void;
+  updateCartQuantity: (id: number, quantity: number) => void;
 }
 
-export const useSuperhostStore = create<SuperhostState>((set) => ({
+export const useSuperhostStore = create<SuperhostState>((set, get) => ({
   properties: [],
-  bookings: [],
-  activePropertyId: null,
   cart: [],
+  activePropertyId: null,
 
   setProperties: (properties) => set({ properties }),
-  setBookings: (bookings) => set({ bookings }),
   setActiveProperty: (id) => set({ activePropertyId: id }),
-  addToCart: (item) => set((state) => ({ cart: [...state.cart, item] })),
+
+  addToCart: (item) => {
+    const existing = get().cart.find((i) => i.id === item.id);
+    if (existing) {
+      set({
+        cart: get().cart.map((i) =>
+          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+        ),
+      });
+    } else {
+      set({ cart: [...get().cart, { ...item, quantity: 1 }] });
+    }
+  },
+
+  removeFromCart: (id) => set({ cart: get().cart.filter((i) => i.id !== id) }),
   clearCart: () => set({ cart: [] }),
+  updateCartQuantity: (id, quantity) =>
+    set({
+      cart: get().cart.map((i) => (i.id === id ? { ...i, quantity: Math.max(1, quantity) } : i)),
+    }),
 }));
