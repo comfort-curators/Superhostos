@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm --filter @superhostos/web build",
+  "outputDirectory": "apps/web/dist",
+  "framework": "vite"
+}
