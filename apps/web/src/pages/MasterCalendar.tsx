@@ -19,8 +19,7 @@ export default function MasterCalendar() {
         </div>
 
         <div className="text-center py-12 text-[#8B7B6B]">
-          Calendar grid coming soon.<br />
-          Will show unified bookings from all iCal sources.
+          Calendar grid coming soon.
         </div>
       </div>
     </div>

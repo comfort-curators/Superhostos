@@ -15,8 +15,8 @@ export default function Marketplace() {
     <div className="p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-[#1A1914]">Marketplace</h1>
-          <p className="text-[#8B7B6B] mt-1">Order supplies for your properties • {cart.length} items in cart</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Marketplace</h1>
+          <p className="text-[#8B7B6B] mt-1">Order supplies • {cart.length} items in cart</p>
         </div>
       </div>
 
@@ -32,29 +32,15 @@ export default function Marketplace() {
                 {product.inStock ? 'In Stock' : 'Backorder'}
               </Badge>
             </div>
-
             <div className="mt-auto pt-6 flex items-center justify-between">
-              <div className="text-2xl font-semibold text-[#1A1914]">
-                ${product.price}
-              </div>
-              <Button
-                size="sm"
-                disabled={!product.inStock}
-                onClick={() => addToCart({ id: product.id, name: product.name, price: product.price })}
-              >
+              <div className="text-2xl font-semibold text-[#1A1914]">${product.price}</div>
+              <Button size="sm" disabled={!product.inStock} onClick={() => addToCart({ id: product.id, name: product.name, price: product.price })}>
                 {product.inStock ? 'Add to Cart' : 'Notify Me'}
               </Button>
             </div>
           </div>
         ))}
       </div>
-
-      {cart.length > 0 && (
-        <div className="mt-8 p-4 bg-white border border-[#E8E0D8] rounded-xl">
-          <div className="font-medium mb-2">Cart ({cart.length} items)</div>
-          <div className="text-sm text-[#8B7B6B]">Total: ${cart.reduce((sum, item) => sum + item.price * item.quantity, 0)}</div>
-        </div>
-      )}
     </div>
   );
 }
