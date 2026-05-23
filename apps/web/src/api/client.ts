@@ -25,7 +25,7 @@ export type PropertyDto = z.infer<typeof propertySchema>;
 export type OpsItemDto = z.infer<typeof opsItemSchema>;
 export type OpsStatsDto = z.infer<typeof opsStatsSchema>;
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:4000';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '';
 
 async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init });
