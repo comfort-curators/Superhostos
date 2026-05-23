@@ -1,8 +1,8 @@
 import { Switch, Route } from 'wouter';
-import Dashboard from '../pages/Dashboard';
-import Properties from '../pages/Properties';
-import MasterCalendar from '../pages/MasterCalendar';
-import Marketplace from '../pages/Marketplace';
+import Dashboard from './pages/Dashboard';
+import Properties from './pages/Properties';
+import MasterCalendar from './pages/MasterCalendar';
+import Marketplace from './pages/Marketplace';
 
 export function AppRouter() {
   return (
