@@ -1,7 +1,10 @@
+import { useSuperhostStore } from '../store/useSuperhostStore';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 
 export default function Marketplace() {
+  const { addToCart, cart } = useSuperhostStore();
+
   const products = [
     { id: 1, name: 'Premium Linens Set', price: 89, category: 'Bedding', inStock: true },
     { id: 2, name: 'Luxury Towel Bundle', price: 45, category: 'Bath', inStock: true },
@@ -13,13 +16,13 @@ export default function Marketplace() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-[#1A1914]">Marketplace</h1>
-          <p className="text-[#8B7B6B] mt-1">Order supplies for your properties</p>
+          <p className="text-[#8B7B6B] mt-1">Order supplies for your properties • {cart.length} items in cart</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => (
-          <div key={product.id} className="bg-white border border-[#E8E0D8] rounded-2xl p-6">
+          <div key={product.id} className="bg-white border border-[#E8E0D8] rounded-2xl p-6 flex flex-col">
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-semibold text-[#1A1914]">{product.name}</h3>
@@ -30,17 +33,28 @@ export default function Marketplace() {
               </Badge>
             </div>
 
-            <div className="mt-6 flex items-center justify-between">
+            <div className="mt-auto pt-6 flex items-center justify-between">
               <div className="text-2xl font-semibold text-[#1A1914]">
                 ${product.price}
               </div>
-              <Button size="sm" disabled={!product.inStock}>
+              <Button
+                size="sm"
+                disabled={!product.inStock}
+                onClick={() => addToCart({ id: product.id, name: product.name, price: product.price })}
+              >
                 {product.inStock ? 'Add to Cart' : 'Notify Me'}
               </Button>
             </div>
           </div>
         ))}
       </div>
+
+      {cart.length > 0 && (
+        <div className="mt-8 p-4 bg-white border border-[#E8E0D8] rounded-xl">
+          <div className="font-medium mb-2">Cart ({cart.length} items)</div>
+          <div className="text-sm text-[#8B7B6B]">Total: ${cart.reduce((sum, item) => sum + item.price * item.quantity, 0)}</div>
+        </div>
+      )}
     </div>
   );
 }
