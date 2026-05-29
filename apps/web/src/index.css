@@ -1,3 +1,39 @@
 @import "tailwindcss";
-:root { color-scheme: light; }
-body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #fafaf9; }
+
+/* Comfort Curators brand tokens — Bodoni display + cream/gold/charcoal. */
+@theme {
+  --font-display: "Bodoni Moda", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+
+  --color-cream: #ece4d8;
+  --color-sand: #e3d9c8;
+  --color-ivory: #faf7f1;
+  --color-card: #fbf9f5;
+  --color-ink: #1b1916;
+  --color-muted: #8c8072;
+  --color-gold: #a9854e;
+  --color-gold-soft: #c7ad7e;
+  --color-line: #e7decd;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-cream);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Headings carry the Bodoni brand voice everywhere. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
