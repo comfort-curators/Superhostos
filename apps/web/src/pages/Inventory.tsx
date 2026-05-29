@@ -10,6 +10,7 @@ import {
 } from '../api/client';
 import { useProperties } from '../hooks/useProperties';
 import { LoadingSkeleton } from '../components/LoadingSkeleton';
+import { useToast } from '../components/Toast';
 
 const MODE_STYLES: Record<DecisionMode, string> = {
   optimized: 'bg-emerald-100 text-emerald-700',
@@ -69,6 +70,7 @@ const DecisionCard = ({ d }: { d: ReplenishmentDecisionDto }) => (
 
 export const InventoryPage = () => {
   const qc = useQueryClient();
+  const toast = useToast();
   const { data: properties } = useProperties();
   const [propertyId, setPropertyId] = useState('');
   const [results, setResults] = useState<OrderResultDto[] | null>(null);
@@ -86,7 +88,10 @@ export const InventoryPage = () => {
     onSuccess: (res) => {
       setResults(res.orders);
       void qc.invalidateQueries({ queryKey: ['inventory-plan'] });
-    }
+      const placed = res.orders.filter((o) => o.orderedQty > 0).length;
+      toast.success(placed > 0 ? `Replenishment executed — ${placed} order${placed > 1 ? 's' : ''} placed` : 'Nothing to reorder — stock covers the horizon');
+    },
+    onError: (e: Error) => toast.error(e.message)
   });
 
   const spent = plan ? plan.budget - plan.budgetRemaining : 0;

@@ -14,6 +14,7 @@ import {
 } from '../api/client';
 import { useProperties } from '../hooks/useProperties';
 import { LoadingSkeleton } from '../components/LoadingSkeleton';
+import { useToast } from '../components/Toast';
 
 const STATUS_FILTERS = ['all', 'confirmed', 'checked_in', 'checked_out', 'cancelled'] as const;
 const SOURCES: BookingSource[] = ['direct', 'airbnb', 'booking_com', 'vrbo'];
@@ -44,6 +45,7 @@ const emptyForm = (propertyId: string): CreateBookingInput => ({
 
 export const BookingsPage = () => {
   const qc = useQueryClient();
+  const toast = useToast();
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('all');
   const { data: properties } = useProperties();
   const [form, setForm] = useState<CreateBookingInput>(emptyForm(''));
@@ -60,14 +62,28 @@ export const BookingsPage = () => {
 
   const createMutation = useMutation({
     mutationFn: () => createBooking(form),
-    onSuccess: () => {
+    onSuccess: (b) => {
       setForm(emptyForm(form.propertyId));
       refresh();
-    }
+      toast.success(`Booking confirmed for ${b.guestName}`);
+    },
+    onError: (e: Error) => toast.error(e.message)
   });
-  const checkInMutation = useMutation({ mutationFn: checkInBooking, onSuccess: refresh });
-  const checkOutMutation = useMutation({ mutationFn: checkOutBooking, onSuccess: refresh });
-  const cancelMutation = useMutation({ mutationFn: cancelBooking, onSuccess: refresh });
+  const checkInMutation = useMutation({
+    mutationFn: checkInBooking,
+    onSuccess: (b) => { refresh(); toast.success(`${b.guestName} checked in`); },
+    onError: (e: Error) => toast.error(e.message)
+  });
+  const checkOutMutation = useMutation({
+    mutationFn: checkOutBooking,
+    onSuccess: (b) => { refresh(); toast.success(`${b.guestName} checked out`); },
+    onError: (e: Error) => toast.error(e.message)
+  });
+  const cancelMutation = useMutation({
+    mutationFn: cancelBooking,
+    onSuccess: (b) => { refresh(); toast.notify(`Booking for ${b.guestName} cancelled`); },
+    onError: (e: Error) => toast.error(e.message)
+  });
 
   const defaultPropertyId = properties?.[0]?.id ?? '';
   const selectedPropertyId = form.propertyId || defaultPropertyId;

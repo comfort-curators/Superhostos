@@ -19,6 +19,7 @@ import {
   SettingsPage,
   VendorsPage
 } from './pages';
+import { CookiePolicyPage, PrivacyPage, TermsPage } from './pages/legal';
 
 const ProductRoutes = () => (
   <AppLayout>
@@ -37,6 +38,9 @@ const ProductRoutes = () => (
       <Route path="/ai-reply" component={AiReplyPage} />
       <Route path="/analytics" component={AnalyticsPage} />
       <Route path="/settings" component={SettingsPage} />
+      <Route path="/legal/terms" component={TermsPage} />
+      <Route path="/legal/privacy" component={PrivacyPage} />
+      <Route path="/legal/cookies" component={CookiePolicyPage} />
       <Route component={NotFoundPage} />
     </Switch>
   </AppLayout>

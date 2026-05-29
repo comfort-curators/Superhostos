@@ -1,5 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import type { PropsWithChildren } from 'react';
+import { Footer } from '../Footer';
+import { UserMenu } from '../UserMenu';
 
 const nav = [
   ['/', 'Dashboard'],
@@ -53,15 +55,19 @@ export const AppLayout = ({ children }: PropsWithChildren) => {
 
       <div className="md:ml-72">
         <header className="sticky top-0 z-10 border-b border-line bg-ivory/85 px-4 py-4 backdrop-blur md:px-10">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-ink">{current}</h2>
-            <span className="flex items-center gap-2 text-xs text-muted">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-              Live ops
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="hidden items-center gap-2 text-xs text-muted sm:flex">
+                <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                Live ops
+              </span>
+              <UserMenu />
+            </div>
           </div>
         </header>
         <main className="p-4 md:p-10">{children}</main>
+        <Footer />
         <nav className="fixed inset-x-0 bottom-0 grid grid-cols-5 border-t border-line bg-ivory p-2 md:hidden">
           {nav.slice(0, 5).map(([href, label]) => (
             <Link
