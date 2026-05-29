@@ -41,8 +41,22 @@ export const inventoryRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.post('/inventory/execute', { schema: { tags: ['inventory'] } }, async (req, reply) => {
-    const { propertyId, horizonDays, simulateOutcome } = executeBodySchema.parse(req.body);
-    const orders = service.execute(propertyId, horizonDays, simulateOutcome);
+    const { propertyId, horizonDays, simulateOutcome, override } = executeBodySchema.parse(req.body);
+    const orders = service.execute(propertyId, horizonDays, simulateOutcome, override);
     return reply.code(201).send({ propertyId, orders });
+  });
+
+  // Shared contextual memory: current state + queryable versioned log.
+  app.get('/inventory/memory', { schema: { tags: ['inventory'] } }, async () => {
+    const memory = service.sharedMemory();
+    const snapshot = memory.snapshot();
+    return {
+      version: snapshot.version,
+      beta: snapshot.beta,
+      reliability: snapshot.reliability,
+      spend: snapshot.spend,
+      agentWeights: snapshot.agentWeights,
+      log: snapshot.log.slice(-25)
+    };
   });
 };

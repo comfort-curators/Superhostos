@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { BookingAgent } from './agents/booking.agent';
 import { FinanceAgent } from './agents/finance.agent';
 import { InventoryAgent } from './agents/inventory.agent';
 import { VendorAgent } from './agents/vendor.agent';
+import { aggregateConsensus } from './consensus';
 import type { VendorOption } from './contracts';
 import { argmax, minMaxNormalize, normalizedEntropy, softmax } from './math';
-import { SharedMemory } from './memory';
+import { DEFAULT_BETA, SharedMemory } from './memory';
 import { InventoryOrchestrator } from './orchestrator';
 import { InventoryRepository } from './repository';
 import { InventoryService } from './service';
+
+const flat = (memory: SharedMemory) => memory.updateBeta(-DEFAULT_BETA); // beta -> 0, uniform softmax
 
 const PROPERTY_2 = '00000000-0000-0000-0000-000000000002';
 const NOW = new Date('2026-05-29T00:00:00Z');
@@ -107,29 +109,84 @@ describe('FinanceAgent', () => {
   });
 });
 
-describe('InventoryOrchestrator consensus / fallback', () => {
-  const flatVendorAgents = () => ({
-    booking: new BookingAgent(),
-    inventory: new InventoryAgent(),
-    vendor: new VendorAgent(0), // uniform softmax
-    finance: new FinanceAgent()
+describe('aggregateConsensus', () => {
+  it('reconciles agreeing opinions into a confident choice', () => {
+    const result = aggregateConsensus(
+      [
+        { agent: 'a', weight: 1, distribution: [0.9, 0.1] },
+        { agent: 'b', weight: 1, distribution: [0.85, 0.15] }
+      ],
+      0.8
+    );
+    expect(result.chosenIndex).toBe(0);
+    expect(result.confidence).toBeCloseTo(0.875, 5);
+    expect(result.highUncertainty).toBe(false);
   });
 
-  it('falls back to the most reliable vendor when confidence is low (3 vendors, flat softmax)', () => {
+  it('flags high uncertainty when opinions are uniform', () => {
+    const result = aggregateConsensus(
+      [
+        { agent: 'a', weight: 1, distribution: [1 / 3, 1 / 3, 1 / 3] },
+        { agent: 'b', weight: 1, distribution: [1 / 3, 1 / 3, 1 / 3] }
+      ],
+      0.8
+    );
+    expect(result.entropy).toBeCloseTo(1, 5);
+    expect(result.highUncertainty).toBe(true);
+  });
+
+  it('weights a reliable agent more heavily', () => {
+    const result = aggregateConsensus(
+      [
+        { agent: 'trusted', weight: 0.9, distribution: [0.9, 0.1] },
+        { agent: 'flaky', weight: 0.1, distribution: [0.1, 0.9] }
+      ],
+      0.8
+    );
+    expect(result.chosenIndex).toBe(0);
+  });
+});
+
+describe('InventoryOrchestrator consensus / fallback', () => {
+  it('falls back to the most reliable vendor when consensus confidence is low (3 vendors)', () => {
     const repo = new InventoryRepository();
-    const orch = new InventoryOrchestrator(repo, new SharedMemory(), flatVendorAgents());
+    const memory = new SharedMemory();
+    flat(memory); // uniform -> confidence 1/3 < floor
+    const orch = new InventoryOrchestrator(repo, memory);
     const towels = repo.listItems(PROPERTY_2).find((i) => i.sku === 'TWL-BATH')!;
     const decision = orch.decide(towels, 14, 10_000, NOW);
-    expect(decision.mode).toBe('fallback'); // confidence 1/3 < floor
+    expect(decision.mode).toBe('fallback');
     expect(decision.selectedVendorId).not.toBeNull();
   });
 
-  it('adds a safety buffer on high-entropy two-vendor selection', () => {
+  it('adds a safety buffer on high-entropy two-vendor consensus', () => {
     const repo = new InventoryRepository();
-    const orch = new InventoryOrchestrator(repo, new SharedMemory(), flatVendorAgents());
+    const memory = new SharedMemory();
+    flat(memory); // 2 vendors uniform -> confidence 0.5, entropy 1.0
+    const orch = new InventoryOrchestrator(repo, memory);
     const tp = repo.listItems(PROPERTY_2).find((i) => i.sku === 'TP-ROLL')!;
     const decision = orch.decide(tp, 14, 10_000, NOW);
-    expect(decision.mode).toBe('consensus_buffered'); // confidence 0.5, entropy 1.0
+    expect(decision.mode).toBe('consensus_buffered');
+    expect(decision.consensusContributors.map((c) => c.agent).sort()).toEqual(['finance', 'reliability', 'vendor']);
+  });
+
+  it('honours an authorized priority override on vendor choice', () => {
+    const repo = new InventoryRepository();
+    const orch = new InventoryOrchestrator(repo, new SharedMemory());
+    const towels = repo.listItems(PROPERTY_2).find((i) => i.sku === 'TWL-BATH')!;
+    const forced = repo.vendorsForSku('TWL-BATH').find((v) => v.name === 'RapidRestock')!;
+    const decision = orch.decide(towels, 14, 10_000, NOW, { authorized: true, forceVendorId: forced.id });
+    expect(decision.selectedVendorId).toBe(forced.id);
+    expect(decision.notes.join(' ')).toContain('Priority override');
+  });
+
+  it('ignores an unauthorized override', () => {
+    const repo = new InventoryRepository();
+    const orch = new InventoryOrchestrator(repo, new SharedMemory());
+    const towels = repo.listItems(PROPERTY_2).find((i) => i.sku === 'TWL-BATH')!;
+    const forced = repo.vendorsForSku('TWL-BATH').find((v) => v.name === 'RapidRestock')!;
+    const decision = orch.decide(towels, 14, 10_000, NOW, { authorized: false, forceVendorId: forced.id });
+    expect(decision.notes.join(' ')).not.toContain('Priority override');
   });
 
   it('skips items already above par + forecast', () => {
@@ -139,6 +196,41 @@ describe('InventoryOrchestrator consensus / fallback', () => {
     const decision = orch.decide(soap, 1, 10_000, NOW);
     expect(decision.mode).toBe('skipped');
     expect(decision.recommendedQty).toBe(0);
+  });
+});
+
+describe('SharedMemory (versioned context layer)', () => {
+  it('versions every mutation and exposes a queryable log', () => {
+    const memory = new SharedMemory();
+    expect(memory.version).toBe(0);
+    memory.updateReliability('v1', 0.8, true);
+    memory.recordSpend('p1', 50);
+    expect(memory.version).toBe(2);
+    expect(memory.query({ kind: 'reliability' })).toHaveLength(1);
+    expect(memory.query({ agent: 'finance' })).toHaveLength(1);
+  });
+
+  it('snapshots and restores state across sessions', () => {
+    const a = new SharedMemory();
+    a.updateReliability('v1', 0.8, false);
+    a.recordSpend('p1', 25);
+    a.updateBeta(2);
+    const snap = a.snapshot();
+
+    const b = new SharedMemory();
+    b.restore(snap);
+    expect(b.version).toBe(a.version);
+    expect(b.getSpent('p1')).toBe(25);
+    expect(b.getReliability('v1', 0.8)).toBeCloseTo(a.getReliability('v1', 0.8), 10);
+    expect(b.getBeta()).toBe(a.getBeta());
+  });
+
+  it('provides an agent-specific contextual view', () => {
+    const memory = new SharedMemory();
+    memory.updateAgentWeight('vendor', true);
+    const view = memory.view('vendor');
+    expect(view.agent).toBe('vendor');
+    expect(view.recent.length).toBeGreaterThan(0);
   });
 });
 
@@ -157,7 +249,7 @@ describe('InventoryService', () => {
     const service = new InventoryService(repo, memory);
     const before = repo.listItems(PROPERTY_2).map((i) => ({ id: i.id, onHand: i.onHand }));
 
-    const results = service.execute(PROPERTY_2, 14, 'failure', NOW);
+    const results = service.execute(PROPERTY_2, 14, 'failure', undefined, NOW);
     expect(results.length).toBeGreaterThan(0);
     for (const r of results) {
       expect(r.outcome).toBe('failure');
@@ -174,7 +266,7 @@ describe('InventoryService', () => {
     const service = new InventoryService(repo, memory);
     const before = new Map(repo.listItems(PROPERTY_2).map((i) => [i.id, i.onHand]));
 
-    const results = service.execute(PROPERTY_2, 14, 'success', NOW);
+    const results = service.execute(PROPERTY_2, 14, 'success', undefined, NOW);
     expect(results.every((r) => r.outcome === 'success')).toBe(true);
     expect(results.some((r) => r.orderedQty > 0)).toBe(true);
 
@@ -182,5 +274,23 @@ describe('InventoryService', () => {
     const restocked = repo.listItems(PROPERTY_2).some((i) => i.onHand > (before.get(i.id) ?? 0));
     expect(restocked).toBe(true);
     expect(memory.getSpent(PROPERTY_2)).toBeGreaterThan(0);
+  });
+
+  it('adapts beta up on success and down on failure', () => {
+    const up = new InventoryService(new InventoryRepository(), new SharedMemory());
+    const before = up.sharedMemory().getBeta();
+    up.execute(PROPERTY_2, 14, 'success', undefined, NOW);
+    expect(up.sharedMemory().getBeta()).toBeGreaterThan(before);
+
+    const down = new InventoryService(new InventoryRepository(), new SharedMemory());
+    down.execute(PROPERTY_2, 14, 'failure', undefined, NOW);
+    expect(down.sharedMemory().getBeta()).toBeLessThan(before);
+  });
+
+  it('applies an authorized budget override', () => {
+    const service = new InventoryService(new InventoryRepository(), new SharedMemory());
+    const plan = service.plan(PROPERTY_2, 14, NOW, { authorized: true, budget: 1000 });
+    expect(plan.budget).toBe(1000);
+    expect(plan.memoryVersion).toBeGreaterThan(0);
   });
 });

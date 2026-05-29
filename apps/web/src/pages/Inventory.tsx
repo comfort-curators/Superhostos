@@ -48,7 +48,9 @@ const DecisionCard = ({ d }: { d: ReplenishmentDecisionDto }) => (
 
     {d.vendorScores.length > 0 ? (
       <div className="mt-3 space-y-1">
-        <p className="text-xs text-stone-400">Vendor selection (softmax) · confidence {Math.round(d.confidence * 100)}% · entropy {d.entropy.toFixed(2)}</p>
+        <p className="text-xs text-stone-400">
+          Consensus ({d.consensusContributors.map((c) => c.agent).join(' · ') || 'vendor · finance · reliability'}) · confidence {Math.round(d.confidence * 100)}% · entropy {d.entropy.toFixed(2)} · β {d.betaUsed}
+        </p>
         {d.vendorScores.map((s) => (
           <div key={s.vendorId} className="flex items-center gap-2 text-xs">
             <span className="w-32 truncate text-stone-600">{s.vendorName}</span>
@@ -94,7 +96,8 @@ export const InventoryPage = () => {
     <section className="space-y-4 pb-20 md:pb-0">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold tracking-tight">Predictive Inventory</h1>
-        <p className="mt-1 text-sm text-stone-500">Multi-agent replenishment — occupancy-driven forecasting, softmax vendor selection, budget-aware execution.</p>
+        <p className="mt-1 text-sm text-stone-500">Multi-agent replenishment — occupancy-driven forecasting, entropy-minimizing consensus, budget-aware execution.</p>
+        {plan ? <p className="mt-2 text-xs text-stone-400">Shared memory v{plan.memoryVersion} · adaptive β {plan.beta}</p> : null}
       </motion.div>
 
       <div className="flex flex-col gap-2 md:flex-row md:items-center">

@@ -1,32 +1,34 @@
 import { BookingAgent } from './agents/booking.agent';
 import { FinanceAgent } from './agents/finance.agent';
 import { InventoryAgent } from './agents/inventory.agent';
-import { VendorAgent } from './agents/vendor.agent';
-import type { InventoryItem, ReplenishmentDecision, VendorOption } from './contracts';
+import { costOpinion, optimizerOpinion, reliabilityOpinion } from './agents/advisors';
+import { aggregateConsensus } from './consensus';
+import type { InventoryItem, OverrideSignal, ReplenishmentDecision, VendorOption, VendorScore } from './contracts';
 import { SharedMemory } from './memory';
 import { argmax, round2 } from './math';
 import type { InventoryRepository } from './repository';
 
-// Consensus thresholds (patent §4.6, §4.9).
-const CONFIDENCE_FLOOR = 0.4; // below this the optimizer is too unsure -> deterministic fallback
-const ENTROPY_HIGH = 0.8; // above this selection is near-uniform -> conservative safety buffer
+// Consensus thresholds (patent §4.4, §4.6).
+const CONFIDENCE_FLOOR = 0.4; // below this -> deterministic fallback
+const ENTROPY_HIGH = 0.8; // above this -> conservative safety buffer
 const SAFETY_BUFFER_PCT = 0.15;
 
 export interface AgentBundle {
   booking: BookingAgent;
   inventory: InventoryAgent;
-  vendor: VendorAgent;
   finance: FinanceAgent;
 }
 
 function defaultAgents(): AgentBundle {
-  return { booking: new BookingAgent(), inventory: new InventoryAgent(), vendor: new VendorAgent(), finance: new FinanceAgent() };
+  return { booking: new BookingAgent(), inventory: new InventoryAgent(), finance: new FinanceAgent() };
 }
 
 /**
  * Orchestrator implementing the multi-agent consensus protocol and the
  * deterministic fallback mechanism. It sequences the agents over the shared
- * memory layer to turn an inventory item into a single replenishment decision.
+ * memory layer, reconciles three independent vendor opinions (optimizer, cost,
+ * reliability) via entropy-minimising consensus, and turns an inventory item
+ * into a single replenishment decision.
  */
 export class InventoryOrchestrator {
   constructor(
@@ -35,12 +37,15 @@ export class InventoryOrchestrator {
     private readonly agents: AgentBundle = defaultAgents()
   ) {}
 
-  /**
-   * Produce a decision for one item. `budgetRemaining` is the budget left for
-   * this property in the current cycle (threaded by the plan across items).
-   */
-  decide(item: InventoryItem, horizonDays: number, budgetRemaining: number, now: Date = new Date()): ReplenishmentDecision {
+  decide(
+    item: InventoryItem,
+    horizonDays: number,
+    budgetRemaining: number,
+    now: Date = new Date(),
+    override?: OverrideSignal
+  ): ReplenishmentDecision {
     const notes: string[] = [];
+    const beta = this.memory.getBeta();
     const occupancyRate = this.agents.booking.occupancyRate(item.propertyId, horizonDays, now);
     const forecast = this.agents.inventory.forecast(item, occupancyRate, horizonDays, now);
 
@@ -52,65 +57,71 @@ export class InventoryOrchestrator {
       occupancyRate: round2(occupancyRate),
       forecastDemand: forecast.forecastDemand,
       safetyBuffer: forecast.safetyBuffer,
-      onHand: item.onHand
+      onHand: item.onHand,
+      betaUsed: round2(beta)
     };
 
-    // No deficit -> nothing to order.
-    if (forecast.recommendedQty <= 0) {
+    const skip = (mode: ReplenishmentDecision['mode'], skipNotes: string[]): ReplenishmentDecision => {
       const decision: ReplenishmentDecision = {
         ...base,
         recommendedQty: 0,
         selectedVendorId: null,
         selectedVendorName: null,
         vendorScores: [],
-        confidence: 1,
+        consensusContributors: [],
+        confidence: mode === 'skipped' ? 1 : 0,
         entropy: 0,
         estimatedCost: 0,
         withinBudget: true,
-        mode: 'skipped',
-        notes: ['On-hand stock covers forecast + par level']
+        mode,
+        notes: skipNotes
       };
       this.memory.recordDecision(decision);
       return decision;
-    }
+    };
+
+    if (forecast.recommendedQty <= 0) return skip('skipped', ['On-hand stock covers forecast + par level']);
 
     const candidates = this.repository.vendorsForSku(item.sku);
-    const selection = this.agents.vendor.select(candidates, this.memory);
+    if (candidates.length === 0) return skip('fallback', [`No vendor can fulfil SKU ${item.sku}`]);
 
-    // No vendor can fulfil this SKU at all.
-    if (!selection.selected) {
-      const decision: ReplenishmentDecision = {
-        ...base,
-        recommendedQty: 0,
-        selectedVendorId: null,
-        selectedVendorName: null,
-        vendorScores: [],
-        confidence: 0,
-        entropy: 0,
-        estimatedCost: 0,
-        withinBudget: true,
-        mode: 'fallback',
-        notes: [`No vendor can fulfil SKU ${item.sku}`]
-      };
-      this.memory.recordDecision(decision);
-      return decision;
-    }
+    // --- multi-agent consensus over the vendor candidates ---
+    const consensus = aggregateConsensus(
+      [
+        { agent: 'vendor', weight: this.memory.getAgentWeight('vendor'), distribution: optimizerOpinion(candidates, this.memory, beta) },
+        { agent: 'finance', weight: this.memory.getAgentWeight('finance'), distribution: costOpinion(candidates, this.memory, beta) },
+        { agent: 'reliability', weight: this.memory.getAgentWeight('reliability'), distribution: reliabilityOpinion(candidates, this.memory, beta) }
+      ],
+      ENTROPY_HIGH
+    );
+
+    const vendorScores: VendorScore[] = candidates.map((vendor, i) => ({
+      vendorId: vendor.id,
+      vendorName: vendor.name,
+      utility: round2(consensus.distribution[i] ?? 0),
+      probability: round2(consensus.distribution[i] ?? 0)
+    }));
 
     let qty = forecast.recommendedQty;
-    let chosen: VendorOption = selection.selected;
+    let chosen: VendorOption = candidates[consensus.chosenIndex] ?? this.mostReliable(candidates);
     let mode: ReplenishmentDecision['mode'] = 'optimized';
 
-    if (selection.confidence < CONFIDENCE_FLOOR) {
-      // Deterministic fallback: ignore the flat softmax and take the most
-      // reliable cached vendor (last-known-good behaviour).
+    // Authorized priority override takes precedence over the optimizer.
+    const forced = override?.authorized && override.forceVendorId
+      ? candidates.find((v) => v.id === override.forceVendorId)
+      : undefined;
+    if (forced) {
+      chosen = forced;
+      notes.push(`Priority override -> vendor ${forced.name}`);
+      this.memory.recordOverride('forceVendor', forced.id);
+    } else if (consensus.confidence < CONFIDENCE_FLOOR) {
       chosen = this.mostReliable(candidates);
       mode = 'fallback';
-      notes.push(`Low optimizer confidence (${selection.confidence.toFixed(2)}) -> deterministic most-reliable vendor`);
-    } else if (selection.entropy > ENTROPY_HIGH) {
-      // High-uncertainty event: keep the optimizer's pick but order conservatively.
+      notes.push(`Low consensus confidence (${consensus.confidence.toFixed(2)}) -> deterministic most-reliable vendor`);
+    } else if (consensus.highUncertainty) {
       qty = Math.ceil(qty * (1 + SAFETY_BUFFER_PCT));
       mode = 'consensus_buffered';
-      notes.push(`High selection entropy (${selection.entropy.toFixed(2)}) -> +${Math.round(SAFETY_BUFFER_PCT * 100)}% safety buffer`);
+      notes.push(`High consensus entropy (${consensus.entropy.toFixed(2)}) -> +${Math.round(SAFETY_BUFFER_PCT * 100)}% safety buffer`);
     }
 
     const verdict = this.agents.finance.evaluate(qty, chosen.unitPrice, budgetRemaining);
@@ -122,9 +133,10 @@ export class InventoryOrchestrator {
       recommendedQty: verdict.approvedQty,
       selectedVendorId: placed ? chosen.id : null,
       selectedVendorName: placed ? chosen.name : null,
-      vendorScores: selection.scores,
-      confidence: round2(selection.confidence),
-      entropy: round2(selection.entropy),
+      vendorScores,
+      consensusContributors: consensus.contributors,
+      confidence: round2(consensus.confidence),
+      entropy: round2(consensus.entropy),
       estimatedCost: verdict.cost,
       withinBudget: verdict.withinBudget,
       mode,
@@ -136,8 +148,6 @@ export class InventoryOrchestrator {
 
   private mostReliable(candidates: VendorOption[]): VendorOption {
     const reliabilities = candidates.map((v) => this.memory.getReliability(v.id, v.reliability));
-    const best = candidates[argmax(reliabilities)];
-    // candidates is non-empty at every call site.
-    return best ?? (candidates[0] as VendorOption);
+    return candidates[argmax(reliabilities)] ?? (candidates[0] as VendorOption);
   }
 }

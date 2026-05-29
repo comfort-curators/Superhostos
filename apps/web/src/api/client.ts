@@ -109,8 +109,10 @@ const replenishmentDecisionSchema = z.object({
   selectedVendorId: z.string().uuid().nullable(),
   selectedVendorName: z.string().nullable(),
   vendorScores: z.array(vendorScoreSchema),
+  consensusContributors: z.array(z.object({ agent: z.string(), weight: z.number() })),
   confidence: z.number(),
   entropy: z.number(),
+  betaUsed: z.number(),
   estimatedCost: z.number(),
   withinBudget: z.boolean(),
   mode: z.enum(['optimized', 'consensus_buffered', 'fallback', 'skipped']),
@@ -122,6 +124,8 @@ const replenishmentPlanSchema = z.object({
   horizonDays: z.number(),
   budget: z.number(),
   budgetRemaining: z.number(),
+  beta: z.number(),
+  memoryVersion: z.number(),
   decisions: z.array(replenishmentDecisionSchema)
 });
 

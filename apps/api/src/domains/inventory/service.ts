@@ -1,4 +1,4 @@
-import type { InventoryItem, OrderResult, ReplenishmentPlan } from './contracts';
+import type { InventoryItem, OrderResult, OverrideSignal, ReplenishmentPlan } from './contracts';
 import { SharedMemory } from './memory';
 import { InventoryOrchestrator } from './orchestrator';
 import { InventoryRepository } from './repository';
@@ -13,11 +13,14 @@ export class InventoryError extends Error {
   }
 }
 
+// How much an operational cycle nudges the adaptive sensitivity parameter beta.
+const BETA_STEP = 0.5;
+
 /**
  * Application service tying the inventory domain together: it threads the
- * per-cycle budget across items to build a replenishment plan, and commits
- * orders — updating stock, the budget ledger, and (via the reinforcement layer)
- * vendor reliability based on delivery outcomes.
+ * per-cycle budget across items to build a replenishment plan, commits orders,
+ * and feeds outcomes back into the shared memory layer — adapting vendor
+ * reliability, per-agent consensus weights, and the softmax sensitivity beta.
  */
 export class InventoryService {
   private readonly orchestrator: InventoryOrchestrator;
@@ -33,29 +36,51 @@ export class InventoryService {
     return this.repository.listItems(propertyId);
   }
 
-  plan(propertyId: string, horizonDays: number, now: Date = new Date()): ReplenishmentPlan {
+  sharedMemory(): SharedMemory {
+    return this.memory;
+  }
+
+  plan(propertyId: string, horizonDays: number, now: Date = new Date(), override?: OverrideSignal): ReplenishmentPlan {
     const items = this.repository.listItems(propertyId);
     if (items.length === 0) throw new InventoryError(404, `No inventory for property ${propertyId}`);
 
-    const budget = this.repository.budgetFor(propertyId);
-    let remaining = budget - this.memory.getSpent(propertyId);
+    let budget = this.repository.budgetFor(propertyId);
+    if (override?.authorized && override.budget !== undefined) {
+      budget = override.budget;
+      this.memory.recordOverride('budget', budget);
+    }
 
+    let remaining = budget - this.memory.getSpent(propertyId);
     const decisions = items.map((item) => {
-      const decision = this.orchestrator.decide(item, horizonDays, remaining, now);
+      const decision = this.orchestrator.decide(item, horizonDays, remaining, now, override);
       remaining -= decision.estimatedCost;
       return decision;
     });
 
-    return { propertyId, horizonDays, budget, budgetRemaining: Math.max(0, remaining), decisions };
+    return {
+      propertyId,
+      horizonDays,
+      budget,
+      budgetRemaining: Math.max(0, remaining),
+      beta: this.memory.getBeta(),
+      memoryVersion: this.memory.version,
+      decisions
+    };
   }
 
   /**
    * Execute the current plan: place each recommended order, simulate the
    * delivery outcome, and feed it back into the shared memory layer so vendor
-   * reliability adapts over operational cycles (patent §4.7).
+   * reliability, consensus weights, and beta adapt over cycles (patent §4.5).
    */
-  execute(propertyId: string, horizonDays: number, simulateOutcome?: 'success' | 'failure', now: Date = new Date()): OrderResult[] {
-    const plan = this.plan(propertyId, horizonDays, now);
+  execute(
+    propertyId: string,
+    horizonDays: number,
+    simulateOutcome?: 'success' | 'failure',
+    override?: OverrideSignal,
+    now: Date = new Date()
+  ): OrderResult[] {
+    const plan = this.plan(propertyId, horizonDays, now, override);
 
     const results: OrderResult[] = [];
     for (const decision of plan.decisions) {
@@ -72,6 +97,9 @@ export class InventoryService {
         newOnHand = this.repository.adjustOnHand(decision.itemId, decision.recommendedQty)?.onHand ?? decision.onHand;
       }
       const reliabilityAfter = this.memory.updateReliability(vendor.id, vendor.reliability, success);
+      // Reinforce the agents that backed this order.
+      this.memory.updateAgentWeight('vendor', success);
+      this.memory.updateAgentWeight('reliability', success);
 
       results.push({
         itemId: decision.itemId,
@@ -86,6 +114,13 @@ export class InventoryService {
         mode: decision.mode,
         notes: success ? decision.notes : [...decision.notes, 'Delivery failed; reliability penalised, no charge applied']
       });
+    }
+
+    // Adapt beta from the cycle outcome: reward sharpens exploitation, failure
+    // widens exploration.
+    if (results.length > 0) {
+      const successRate = results.filter((r) => r.outcome === 'success').length / results.length;
+      this.memory.updateBeta(successRate >= 0.5 ? BETA_STEP : -BETA_STEP);
     }
 
     return results;

@@ -57,8 +57,11 @@ export const replenishmentDecisionSchema = z.object({
   selectedVendorId: z.string().uuid().nullable(),
   selectedVendorName: z.string().nullable(),
   vendorScores: z.array(vendorScoreSchema),
+  // Per-agent opinions reconciled by the consensus protocol.
+  consensusContributors: z.array(z.object({ agent: z.string(), weight: z.number() })),
   confidence: z.number(),
   entropy: z.number(),
+  betaUsed: z.number(),
   estimatedCost: z.number(),
   withinBudget: z.boolean(),
   mode: decisionModeSchema,
@@ -71,9 +74,21 @@ export const replenishmentPlanSchema = z.object({
   horizonDays: z.number(),
   budget: z.number(),
   budgetRemaining: z.number(),
+  beta: z.number(),
+  memoryVersion: z.number(),
   decisions: z.array(replenishmentDecisionSchema)
 });
 export type ReplenishmentPlan = z.infer<typeof replenishmentPlanSchema>;
+
+// --- Priority override (patent §4.6) --------------------------------------
+// An authorized operator may override constraints. Honoured only when
+// `authorized` is true; every applied override is logged to shared memory.
+export const overrideSignalSchema = z.object({
+  authorized: z.boolean(),
+  budget: z.number().nonnegative().optional(),
+  forceVendorId: z.string().uuid().optional()
+});
+export type OverrideSignal = z.infer<typeof overrideSignalSchema>;
 
 // --- Request payloads -----------------------------------------------------
 export const planQuerySchema = z.object({
@@ -85,7 +100,8 @@ export const executeBodySchema = z.object({
   propertyId: z.string().uuid(),
   horizonDays: z.number().int().positive().max(90).default(14),
   // Optional override: simulate a delivery failure to exercise the RL update.
-  simulateOutcome: z.enum(['success', 'failure']).optional()
+  simulateOutcome: z.enum(['success', 'failure']).optional(),
+  override: overrideSignalSchema.optional()
 });
 
 export const orderResultSchema = z.object({
