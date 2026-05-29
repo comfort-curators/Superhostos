@@ -1,126 +1,23 @@
-// This file is auto-generated. Do not edit manually.
-import { index, integer, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
-import { createInsertSchema } from 'drizzle-zod';
-import type { z } from 'zod';
+import { boolean, index, integer, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
-// Enums
-export const riskLevelEnum = pgEnum('risk_level', [
-  'LOW',
-  'MEDIUM',
-  'HIGH',
-  'CRITICAL',
-  'STOCKOUT',
-]);
-export const taskStatusEnum = pgEnum('task_status', ['scheduled', 'completed']);
-export const maintenancePriorityEnum = pgEnum('maintenance_priority', ['low', 'medium', 'high']);
-export const maintenanceStatusEnum = pgEnum('maintenance_status', ['open', 'completed']);
-export const orderStatusEnum = pgEnum('order_status', ['pending', 'completed']);
+const audit = {
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  createdBy: text('created_by').notNull(),
+  updatedBy: text('updated_by').notNull()
+};
 
-// Properties
-export const properties = pgTable(
-  'properties',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    name: text('name').notNull(),
-    city: text('city').notNull(),
-    country: text('country').notNull(),
-    bedrooms: integer('bedrooms').notNull(),
-    maxGuests: integer('max_guests').notNull(),
-    ownerName: text('owner_name').notNull(),
-    amenities: text('amenities').array().notNull().default([]),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  },
-  (table) => ({
-    nameIdx: index('idx_properties_name').on(table.name),
-  })
-);
-
-export const insertPropertySchema = createInsertSchema(properties);
-export type InsertProperty = z.infer<typeof insertPropertySchema>;
-export type Property = typeof properties.$inferSelect;
-
-// Cleaning Tasks
-export const cleaningTasks = pgTable(
-  'cleaning_tasks',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    propertyId: uuid('property_id')
-      .notNull()
-      .references(() => properties.id),
-    taskDate: timestamp('task_date').notNull(),
-    status: taskStatusEnum('status').notNull().default('scheduled'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  },
-  (table) => ({
-    propertyIdx: index('idx_cleaning_property').on(table.propertyId),
-    dateIdx: index('idx_cleaning_date').on(table.taskDate),
-  })
-);
-
-export const insertCleaningTaskSchema = createInsertSchema(cleaningTasks);
-export type InsertCleaningTask = z.infer<typeof insertCleaningTaskSchema>;
-export type CleaningTask = typeof cleaningTasks.$inferSelect;
-
-// Maintenance Tasks
-export const maintenanceTasks = pgTable(
-  'maintenance_tasks',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    propertyId: uuid('property_id')
-      .notNull()
-      .references(() => properties.id),
-    issue: text('issue').notNull(),
-    priority: maintenancePriorityEnum('priority').notNull().default('medium'),
-    status: maintenanceStatusEnum('status').notNull().default('open'),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  },
-  (table) => ({
-    propertyIdx: index('idx_maintenance_property').on(table.propertyId),
-  })
-);
-
-export const insertMaintenanceTaskSchema = createInsertSchema(maintenanceTasks);
-export type InsertMaintenanceTask = z.infer<typeof insertMaintenanceTaskSchema>;
-export type MaintenanceTask = typeof maintenanceTasks.$inferSelect;
-
-// Orders
-export const orders = pgTable(
-  'orders',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    propertyId: uuid('property_id')
-      .notNull()
-      .references(() => properties.id),
-    item: text('item').notNull(),
-    quantity: integer('quantity').notNull(),
-    status: orderStatusEnum('status').notNull().default('pending'),
-    totalPrice: integer('total_price').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  },
-  (table) => ({
-    propertyIdx: index('idx_orders_property').on(table.propertyId),
-  })
-);
-
-export const insertOrderSchema = createInsertSchema(orders);
-export type InsertOrder = z.infer<typeof insertOrderSchema>;
-export type Order = typeof orders.$inferSelect;
-
-// Message Templates
-export const messageTemplates = pgTable('message_templates', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
-  trigger: text('trigger').notNull(),
-  content: text('content').notNull(),
-  active: text('active').notNull().default('true'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
-export const insertMessageTemplateSchema = createInsertSchema(messageTemplates);
-export type InsertMessageTemplate = z.infer<typeof insertMessageTemplateSchema>;
-export type MessageTemplate = typeof messageTemplates.$inferSelect;
+export const taskStatusEnum = pgEnum('task_status', ['pending', 'in_progress', 'completed', 'cancelled']);
+export const users = pgTable('users', { id: uuid('id').primaryKey().defaultRandom(), clerkUserId: text('clerk_user_id').notNull().unique(), email: text('email').notNull(), role: text('role').notNull(), ...audit });
+export const properties = pgTable('properties', { id: uuid('id').primaryKey().defaultRandom(), organizationId: text('organization_id').notNull(), name: text('name').notNull(), city: text('city').notNull(), isActive: boolean('is_active').notNull().default(true), ...audit }, (t) => [index('idx_properties_org').on(t.organizationId)]);
+export const bookings = pgTable('bookings', { id: uuid('id').primaryKey().defaultRandom(), propertyId: uuid('property_id').notNull(), sourceId: uuid('source_id').notNull(), externalReservationId: text('external_reservation_id').notNull(), checkIn: timestamp('check_in', { withTimezone: true }).notNull(), checkOut: timestamp('check_out', { withTimezone: true }).notNull(), guestCount: integer('guest_count').notNull(), ...audit });
+export const bookingSources = pgTable('booking_sources', { id: uuid('id').primaryKey().defaultRandom(), propertyId: uuid('property_id').notNull(), provider: text('provider').notNull(), icalUrl: text('ical_url').notNull(), ...audit });
+export const cleaningTasks = pgTable('cleaning_tasks', { id: uuid('id').primaryKey().defaultRandom(), propertyId: uuid('property_id').notNull(), status: taskStatusEnum('status').notNull(), scheduledFor: timestamp('scheduled_for', { withTimezone: true }).notNull(), ...audit });
+export const maintenanceTasks = pgTable('maintenance_tasks', { id: uuid('id').primaryKey().defaultRandom(), propertyId: uuid('property_id').notNull(), status: taskStatusEnum('status').notNull(), title: text('title').notNull(), ...audit });
+export const vendors = pgTable('vendors', { id: uuid('id').primaryKey().defaultRandom(), organizationId: text('organization_id').notNull(), name: text('name').notNull(), category: text('category').notNull(), ...audit });
+export const vendorOrders = pgTable('vendor_orders', { id: uuid('id').primaryKey().defaultRandom(), vendorId: uuid('vendor_id').notNull(), propertyId: uuid('property_id').notNull(), status: text('status').notNull(), ...audit });
+export const conversations = pgTable('conversations', { id: uuid('id').primaryKey().defaultRandom(), propertyId: uuid('property_id').notNull(), guestName: text('guest_name').notNull(), ...audit });
+export const messages = pgTable('messages', { id: uuid('id').primaryKey().defaultRandom(), conversationId: uuid('conversation_id').notNull(), authorType: text('author_type').notNull(), body: text('body').notNull(), ...audit });
+export const aiGenerations = pgTable('ai_generations', { id: uuid('id').primaryKey().defaultRandom(), messageId: uuid('message_id').notNull(), provider: text('provider').notNull(), promptTokens: integer('prompt_tokens').notNull(), completionTokens: integer('completion_tokens').notNull(), ...audit });
+export const analyticsSnapshots = pgTable('analytics_snapshots', { id: uuid('id').primaryKey().defaultRandom(), propertyId: uuid('property_id').notNull(), occupancyRate: integer('occupancy_rate').notNull(), revpar: integer('revpar').notNull(), capturedAt: timestamp('captured_at', { withTimezone: true }).notNull(), ...audit });
