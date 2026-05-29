@@ -4,6 +4,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import {
   AiReplyPage,
   AnalyticsPage,
+  BookingsPage,
   CalendarPage,
   DashboardPage,
   HousekeepingPage,
@@ -24,6 +25,7 @@ const ProductRoutes = () => (
       <Route path="/" component={DashboardPage} />
       <Route path="/properties" component={PropertiesPage} />
       <Route path="/properties/:id" component={PropertyDetailPage} />
+      <Route path="/bookings" component={BookingsPage} />
       <Route path="/calendar" component={CalendarPage} />
       <Route path="/housekeeping" component={HousekeepingPage} />
       <Route path="/maintenance" component={MaintenancePage} />

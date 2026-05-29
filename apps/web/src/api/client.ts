@@ -33,6 +33,62 @@ async function request<T>(path: string, schema: z.ZodType<T>, init?: RequestInit
   return schema.parse(await response.json());
 }
 
+const bookingSchema = z.object({
+  id: z.string().uuid(),
+  propertyId: z.string().uuid(),
+  propertyName: z.string(),
+  source: z.enum(['direct', 'airbnb', 'booking_com', 'vrbo']),
+  externalReservationId: z.string(),
+  guestName: z.string(),
+  guestCount: z.number(),
+  checkIn: z.string(),
+  checkOut: z.string(),
+  status: z.enum(['confirmed', 'checked_in', 'checked_out', 'cancelled']),
+  totalAmount: z.number(),
+  createdAt: z.string(),
+  updatedAt: z.string()
+});
+
+const bookingStatsSchema = z.object({
+  total: z.number(),
+  upcoming: z.number(),
+  inHouse: z.number(),
+  byStatus: z.record(z.number())
+});
+
+export type BookingDto = z.infer<typeof bookingSchema>;
+export type BookingStatsDto = z.infer<typeof bookingStatsSchema>;
+export type BookingSource = BookingDto['source'];
+
+export interface CreateBookingInput {
+  propertyId: string;
+  source: BookingSource;
+  guestName: string;
+  guestCount: number;
+  checkIn: string;
+  checkOut: string;
+  totalAmount: number;
+}
+
+// Like `request`, but surfaces the API's error message (e.g. booking conflicts).
+async function mutate<T>(path: string, schema: z.ZodType<T>, init: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { message?: string } | null;
+    throw new Error(body?.message ?? `API ${path} failed (${response.status})`);
+  }
+  return schema.parse(await response.json());
+}
+
+export const fetchBookings = (status?: string) =>
+  request(`/v1/bookings${status && status !== 'all' ? `?status=${status}` : ''}`, z.array(bookingSchema));
+export const fetchBookingStats = () => request('/v1/bookings/stats', bookingStatsSchema);
+export const createBooking = (payload: CreateBookingInput) =>
+  mutate('/v1/bookings', bookingSchema, { method: 'POST', body: JSON.stringify(payload) });
+export const checkInBooking = (id: string) => mutate(`/v1/bookings/${id}/check-in`, bookingSchema, { method: 'POST' });
+export const checkOutBooking = (id: string) => mutate(`/v1/bookings/${id}/check-out`, bookingSchema, { method: 'POST' });
+export const cancelBooking = (id: string) => mutate(`/v1/bookings/${id}/cancel`, bookingSchema, { method: 'POST' });
+
 export const fetchProperties = () => request('/v1/properties', z.array(propertySchema));
 export const fetchOpsItems = (domain: string, status?: string) => request(`/v1/${domain}${status ? `?status=${status}` : ''}`, z.array(opsItemSchema));
 export const fetchOpsStats = (domain: string) => request(`/v1/${domain}/stats`, opsStatsSchema);

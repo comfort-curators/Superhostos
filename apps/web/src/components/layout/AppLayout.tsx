@@ -4,6 +4,7 @@ import type { PropsWithChildren } from 'react';
 const nav = [
   ['/', 'Dashboard'],
   ['/properties', 'Properties'],
+  ['/bookings', 'Bookings'],
   ['/calendar', 'Master Calendar'],
   ['/housekeeping', 'Housekeeping'],
   ['/maintenance', 'Maintenance'],
