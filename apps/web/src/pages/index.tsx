@@ -77,5 +77,6 @@ export const AiReplyPage = () => <OpsPage title="AI Reply Panel" subtitle="Polic
 export const AnalyticsPage = () => <OpsPage title="Analytics" subtitle="KPI snapshots and trends." domain="analytics" />;
 export const SettingsPage = () => <OpsPage title="Settings" subtitle="Organization settings checklist." domain="auth/tasks" />;
 export { BookingsPage } from './Bookings';
+export { InventoryPage } from './Inventory';
 export const LoginPage = () => <div className="mx-auto mt-20 max-w-md rounded-3xl border border-stone-200 bg-white p-8 text-center shadow-sm"><h1 className="text-2xl font-semibold">SuperhostOS</h1><p className="mt-2 text-sm text-stone-500">Sign in to access your hospitality operations suite.</p><div className="mt-6"><SignInButton mode="redirect" forceRedirectUrl="/"><button type="button" className="w-full rounded-2xl bg-stone-900 px-4 py-3 text-sm font-medium text-white">Continue with Clerk</button></SignInButton></div></div>;
 export const NotFoundPage = () => <Shell title="404" subtitle="The page you are looking for does not exist." />;

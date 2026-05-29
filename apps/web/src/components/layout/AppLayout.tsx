@@ -7,6 +7,7 @@ const nav = [
   ['/bookings', 'Bookings'],
   ['/calendar', 'Master Calendar'],
   ['/housekeeping', 'Housekeeping'],
+  ['/inventory', 'Inventory'],
   ['/maintenance', 'Maintenance'],
   ['/vendors', 'Vendors'],
   ['/orders', 'Orders'],

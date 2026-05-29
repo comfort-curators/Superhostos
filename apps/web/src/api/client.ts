@@ -89,6 +89,71 @@ export const checkInBooking = (id: string) => mutate(`/v1/bookings/${id}/check-i
 export const checkOutBooking = (id: string) => mutate(`/v1/bookings/${id}/check-out`, bookingSchema, { method: 'POST' });
 export const cancelBooking = (id: string) => mutate(`/v1/bookings/${id}/cancel`, bookingSchema, { method: 'POST' });
 
+const vendorScoreSchema = z.object({
+  vendorId: z.string().uuid(),
+  vendorName: z.string(),
+  utility: z.number(),
+  probability: z.number()
+});
+
+const replenishmentDecisionSchema = z.object({
+  itemId: z.string().uuid(),
+  sku: z.string(),
+  name: z.string(),
+  propertyId: z.string().uuid(),
+  occupancyRate: z.number(),
+  forecastDemand: z.number(),
+  safetyBuffer: z.number(),
+  onHand: z.number(),
+  recommendedQty: z.number(),
+  selectedVendorId: z.string().uuid().nullable(),
+  selectedVendorName: z.string().nullable(),
+  vendorScores: z.array(vendorScoreSchema),
+  confidence: z.number(),
+  entropy: z.number(),
+  estimatedCost: z.number(),
+  withinBudget: z.boolean(),
+  mode: z.enum(['optimized', 'consensus_buffered', 'fallback', 'skipped']),
+  notes: z.array(z.string())
+});
+
+const replenishmentPlanSchema = z.object({
+  propertyId: z.string().uuid(),
+  horizonDays: z.number(),
+  budget: z.number(),
+  budgetRemaining: z.number(),
+  decisions: z.array(replenishmentDecisionSchema)
+});
+
+const orderResultSchema = z.object({
+  itemId: z.string().uuid(),
+  sku: z.string(),
+  orderedQty: z.number(),
+  vendorId: z.string().uuid().nullable(),
+  vendorName: z.string().nullable(),
+  cost: z.number(),
+  outcome: z.enum(['success', 'failure']),
+  newOnHand: z.number(),
+  vendorReliabilityAfter: z.number().nullable(),
+  mode: z.enum(['optimized', 'consensus_buffered', 'fallback', 'skipped']),
+  notes: z.array(z.string())
+});
+
+const executeResponseSchema = z.object({ propertyId: z.string().uuid(), orders: z.array(orderResultSchema) });
+
+export type ReplenishmentDecisionDto = z.infer<typeof replenishmentDecisionSchema>;
+export type ReplenishmentPlanDto = z.infer<typeof replenishmentPlanSchema>;
+export type OrderResultDto = z.infer<typeof orderResultSchema>;
+export type DecisionMode = ReplenishmentDecisionDto['mode'];
+
+export const fetchInventoryPlan = (propertyId: string, horizonDays = 14) =>
+  request(`/v1/inventory/plan?propertyId=${propertyId}&horizonDays=${horizonDays}`, replenishmentPlanSchema);
+export const executeInventory = (propertyId: string, horizonDays = 14) =>
+  mutate('/v1/inventory/execute', executeResponseSchema, {
+    method: 'POST',
+    body: JSON.stringify({ propertyId, horizonDays })
+  });
+
 export const fetchProperties = () => request('/v1/properties', z.array(propertySchema));
 export const fetchOpsItems = (domain: string, status?: string) => request(`/v1/${domain}${status ? `?status=${status}` : ''}`, z.array(opsItemSchema));
 export const fetchOpsStats = (domain: string) => request(`/v1/${domain}/stats`, opsStatsSchema);

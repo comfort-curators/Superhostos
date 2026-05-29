@@ -8,6 +8,7 @@ import {
   CalendarPage,
   DashboardPage,
   HousekeepingPage,
+  InventoryPage,
   LoginPage,
   MaintenancePage,
   MessagesPage,
@@ -28,6 +29,7 @@ const ProductRoutes = () => (
       <Route path="/bookings" component={BookingsPage} />
       <Route path="/calendar" component={CalendarPage} />
       <Route path="/housekeeping" component={HousekeepingPage} />
+      <Route path="/inventory" component={InventoryPage} />
       <Route path="/maintenance" component={MaintenancePage} />
       <Route path="/vendors" component={VendorsPage} />
       <Route path="/orders" component={OrdersPage} />
