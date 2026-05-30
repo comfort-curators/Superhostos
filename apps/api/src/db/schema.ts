@@ -12,6 +12,29 @@ export const properties = pgTable('properties', {
   isActive: boolean('is_active').notNull().default(true)
 });
 
+export const inventoryCategoryEnum = pgEnum('inventory_category', ['amenities', 'linen', 'consumables', 'cleaning', 'minibar']);
+
+export const inventoryItems = pgTable('inventory_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  propertyId: uuid('property_id').notNull(),
+  sku: text('sku').notNull(),
+  name: text('name').notNull(),
+  category: inventoryCategoryEnum('category').notNull(),
+  unit: text('unit').notNull(),
+  onHand: doublePrecision('on_hand').notNull(),
+  parLevel: doublePrecision('par_level').notNull(),
+  baseDailyUsage: doublePrecision('base_daily_usage').notNull()
+});
+
+export const vendorOptions = pgTable('vendor_options', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  skus: text('skus').array().notNull(),
+  unitPrice: doublePrecision('unit_price').notNull(),
+  leadTimeDays: doublePrecision('lead_time_days').notNull(),
+  reliability: doublePrecision('reliability').notNull()
+});
+
 export const bookings = pgTable('bookings', {
   id: uuid('id').primaryKey().defaultRandom(),
   propertyId: uuid('property_id').notNull(),

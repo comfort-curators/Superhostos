@@ -42,7 +42,7 @@ export const inventoryRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/inventory/execute', { schema: { tags: ['inventory'] } }, async (req, reply) => {
     const { propertyId, horizonDays, simulateOutcome, override } = executeBodySchema.parse(req.body);
-    const orders = service.execute(propertyId, horizonDays, simulateOutcome, override);
+    const orders = await service.execute(propertyId, horizonDays, simulateOutcome, override);
     return reply.code(201).send({ propertyId, orders });
   });
 

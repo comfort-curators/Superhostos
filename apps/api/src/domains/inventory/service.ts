@@ -32,7 +32,7 @@ export class InventoryService {
     this.orchestrator = new InventoryOrchestrator(this.repository, this.memory);
   }
 
-  listItems(propertyId?: string): InventoryItem[] {
+  listItems(propertyId?: string): Promise<InventoryItem[]> {
     return this.repository.listItems(propertyId);
   }
 
@@ -40,8 +40,8 @@ export class InventoryService {
     return this.memory;
   }
 
-  plan(propertyId: string, horizonDays: number, now: Date = new Date(), override?: OverrideSignal): ReplenishmentPlan {
-    const items = this.repository.listItems(propertyId);
+  async plan(propertyId: string, horizonDays: number, now: Date = new Date(), override?: OverrideSignal): Promise<ReplenishmentPlan> {
+    const items = await this.repository.listItems(propertyId);
     if (items.length === 0) throw new InventoryError(404, `No inventory for property ${propertyId}`);
 
     let budget = this.repository.budgetFor(propertyId);
@@ -50,12 +50,14 @@ export class InventoryService {
       this.memory.recordOverride('budget', budget);
     }
 
+    // Sequential: the budget is threaded across items as decisions are made.
     let remaining = budget - this.memory.getSpent(propertyId);
-    const decisions = items.map((item) => {
-      const decision = this.orchestrator.decide(item, horizonDays, remaining, now, override);
+    const decisions: ReplenishmentPlan['decisions'] = [];
+    for (const item of items) {
+      const decision = await this.orchestrator.decide(item, horizonDays, remaining, now, override);
       remaining -= decision.estimatedCost;
-      return decision;
-    });
+      decisions.push(decision);
+    }
 
     return {
       propertyId,
@@ -73,19 +75,19 @@ export class InventoryService {
    * delivery outcome, and feed it back into the shared memory layer so vendor
    * reliability, consensus weights, and beta adapt over cycles (patent §4.5).
    */
-  execute(
+  async execute(
     propertyId: string,
     horizonDays: number,
     simulateOutcome?: 'success' | 'failure',
     override?: OverrideSignal,
     now: Date = new Date()
-  ): OrderResult[] {
-    const plan = this.plan(propertyId, horizonDays, now, override);
+  ): Promise<OrderResult[]> {
+    const plan = await this.plan(propertyId, horizonDays, now, override);
 
     const results: OrderResult[] = [];
     for (const decision of plan.decisions) {
       if (decision.recommendedQty <= 0 || !decision.selectedVendorId) continue;
-      const vendor = this.repository.findVendor(decision.selectedVendorId);
+      const vendor = await this.repository.findVendor(decision.selectedVendorId);
       if (!vendor) continue;
 
       const reliability = this.memory.getReliability(vendor.id, vendor.reliability);
@@ -94,7 +96,7 @@ export class InventoryService {
       let newOnHand = decision.onHand;
       if (success) {
         this.memory.recordSpend(propertyId, decision.estimatedCost);
-        newOnHand = this.repository.adjustOnHand(decision.itemId, decision.recommendedQty)?.onHand ?? decision.onHand;
+        newOnHand = (await this.repository.adjustOnHand(decision.itemId, decision.recommendedQty))?.onHand ?? decision.onHand;
       }
       const reliabilityAfter = this.memory.updateReliability(vendor.id, vendor.reliability, success);
       // Reinforce the agents that backed this order.

@@ -148,52 +148,52 @@ describe('aggregateConsensus', () => {
 });
 
 describe('InventoryOrchestrator consensus / fallback', () => {
-  it('falls back to the most reliable vendor when consensus confidence is low (3 vendors)', () => {
+  it('falls back to the most reliable vendor when consensus confidence is low (3 vendors)', async () => {
     const repo = new InventoryRepository();
     const memory = new SharedMemory();
     flat(memory); // uniform -> confidence 1/3 < floor
     const orch = new InventoryOrchestrator(repo, memory);
-    const towels = repo.listItems(PROPERTY_2).find((i) => i.sku === 'TWL-BATH')!;
-    const decision = orch.decide(towels, 14, 10_000, NOW);
+    const towels = (await repo.listItems(PROPERTY_2)).find((i) => i.sku === 'TWL-BATH')!;
+    const decision = await orch.decide(towels, 14, 10_000, NOW);
     expect(decision.mode).toBe('fallback');
     expect(decision.selectedVendorId).not.toBeNull();
   });
 
-  it('adds a safety buffer on high-entropy two-vendor consensus', () => {
+  it('adds a safety buffer on high-entropy two-vendor consensus', async () => {
     const repo = new InventoryRepository();
     const memory = new SharedMemory();
     flat(memory); // 2 vendors uniform -> confidence 0.5, entropy 1.0
     const orch = new InventoryOrchestrator(repo, memory);
-    const tp = repo.listItems(PROPERTY_2).find((i) => i.sku === 'TP-ROLL')!;
-    const decision = orch.decide(tp, 14, 10_000, NOW);
+    const tp = (await repo.listItems(PROPERTY_2)).find((i) => i.sku === 'TP-ROLL')!;
+    const decision = await orch.decide(tp, 14, 10_000, NOW);
     expect(decision.mode).toBe('consensus_buffered');
     expect(decision.consensusContributors.map((c) => c.agent).sort()).toEqual(['finance', 'reliability', 'vendor']);
   });
 
-  it('honours an authorized priority override on vendor choice', () => {
+  it('honours an authorized priority override on vendor choice', async () => {
     const repo = new InventoryRepository();
     const orch = new InventoryOrchestrator(repo, new SharedMemory());
-    const towels = repo.listItems(PROPERTY_2).find((i) => i.sku === 'TWL-BATH')!;
-    const forced = repo.vendorsForSku('TWL-BATH').find((v) => v.name === 'RapidRestock')!;
-    const decision = orch.decide(towels, 14, 10_000, NOW, { authorized: true, forceVendorId: forced.id });
+    const towels = (await repo.listItems(PROPERTY_2)).find((i) => i.sku === 'TWL-BATH')!;
+    const forced = (await repo.vendorsForSku('TWL-BATH')).find((v) => v.name === 'RapidRestock')!;
+    const decision = await orch.decide(towels, 14, 10_000, NOW, { authorized: true, forceVendorId: forced.id });
     expect(decision.selectedVendorId).toBe(forced.id);
     expect(decision.notes.join(' ')).toContain('Priority override');
   });
 
-  it('ignores an unauthorized override', () => {
+  it('ignores an unauthorized override', async () => {
     const repo = new InventoryRepository();
     const orch = new InventoryOrchestrator(repo, new SharedMemory());
-    const towels = repo.listItems(PROPERTY_2).find((i) => i.sku === 'TWL-BATH')!;
-    const forced = repo.vendorsForSku('TWL-BATH').find((v) => v.name === 'RapidRestock')!;
-    const decision = orch.decide(towels, 14, 10_000, NOW, { authorized: false, forceVendorId: forced.id });
+    const towels = (await repo.listItems(PROPERTY_2)).find((i) => i.sku === 'TWL-BATH')!;
+    const forced = (await repo.vendorsForSku('TWL-BATH')).find((v) => v.name === 'RapidRestock')!;
+    const decision = await orch.decide(towels, 14, 10_000, NOW, { authorized: false, forceVendorId: forced.id });
     expect(decision.notes.join(' ')).not.toContain('Priority override');
   });
 
-  it('skips items already above par + forecast', () => {
+  it('skips items already above par + forecast', async () => {
     const repo = new InventoryRepository();
     const orch = new InventoryOrchestrator(repo, new SharedMemory());
-    const soap = repo.listItems('00000000-0000-0000-0000-000000000001').find((i) => i.sku === 'SOAP-BAR')!;
-    const decision = orch.decide(soap, 1, 10_000, NOW);
+    const soap = (await repo.listItems('00000000-0000-0000-0000-000000000001')).find((i) => i.sku === 'SOAP-BAR')!;
+    const decision = await orch.decide(soap, 1, 10_000, NOW);
     expect(decision.mode).toBe('skipped');
     expect(decision.recommendedQty).toBe(0);
   });
@@ -235,61 +235,61 @@ describe('SharedMemory (versioned context layer)', () => {
 });
 
 describe('InventoryService', () => {
-  it('produces a budget-constrained plan', () => {
+  it('produces a budget-constrained plan', async () => {
     const service = new InventoryService();
-    const plan = service.plan(PROPERTY_2, 14, NOW);
+    const plan = await service.plan(PROPERTY_2, 14, NOW);
     expect(plan.decisions.length).toBeGreaterThan(0);
     expect(plan.budgetRemaining).toBeLessThanOrEqual(plan.budget);
     expect(plan.decisions.some((d) => d.recommendedQty > 0)).toBe(true);
   });
 
-  it('penalises reliability and skips stock on delivery failure', () => {
+  it('penalises reliability and skips stock on delivery failure', async () => {
     const repo = new InventoryRepository();
     const memory = new SharedMemory();
     const service = new InventoryService(repo, memory);
-    const before = repo.listItems(PROPERTY_2).map((i) => ({ id: i.id, onHand: i.onHand }));
+    const before = (await repo.listItems(PROPERTY_2)).map((i) => ({ id: i.id, onHand: i.onHand }));
 
-    const results = service.execute(PROPERTY_2, 14, 'failure', undefined, NOW);
+    const results = await service.execute(PROPERTY_2, 14, 'failure', undefined, NOW);
     expect(results.length).toBeGreaterThan(0);
     for (const r of results) {
       expect(r.outcome).toBe('failure');
       expect(r.orderedQty).toBe(0);
       expect(r.vendorReliabilityAfter).not.toBeNull();
     }
-    const after = repo.listItems(PROPERTY_2).map((i) => ({ id: i.id, onHand: i.onHand }));
+    const after = (await repo.listItems(PROPERTY_2)).map((i) => ({ id: i.id, onHand: i.onHand }));
     expect(after).toEqual(before); // failed deliveries don't change stock
   });
 
-  it('commits stock and spend on success', () => {
+  it('commits stock and spend on success', async () => {
     const repo = new InventoryRepository();
     const memory = new SharedMemory();
     const service = new InventoryService(repo, memory);
-    const before = new Map(repo.listItems(PROPERTY_2).map((i) => [i.id, i.onHand]));
+    const before = new Map((await repo.listItems(PROPERTY_2)).map((i) => [i.id, i.onHand]));
 
-    const results = service.execute(PROPERTY_2, 14, 'success', undefined, NOW);
+    const results = await service.execute(PROPERTY_2, 14, 'success', undefined, NOW);
     expect(results.every((r) => r.outcome === 'success')).toBe(true);
     expect(results.some((r) => r.orderedQty > 0)).toBe(true);
 
     // At least one item was restocked, and the budget ledger recorded spend.
-    const restocked = repo.listItems(PROPERTY_2).some((i) => i.onHand > (before.get(i.id) ?? 0));
+    const restocked = (await repo.listItems(PROPERTY_2)).some((i) => i.onHand > (before.get(i.id) ?? 0));
     expect(restocked).toBe(true);
     expect(memory.getSpent(PROPERTY_2)).toBeGreaterThan(0);
   });
 
-  it('adapts beta up on success and down on failure', () => {
+  it('adapts beta up on success and down on failure', async () => {
     const up = new InventoryService(new InventoryRepository(), new SharedMemory());
     const before = up.sharedMemory().getBeta();
-    up.execute(PROPERTY_2, 14, 'success', undefined, NOW);
+    await up.execute(PROPERTY_2, 14, 'success', undefined, NOW);
     expect(up.sharedMemory().getBeta()).toBeGreaterThan(before);
 
     const down = new InventoryService(new InventoryRepository(), new SharedMemory());
-    down.execute(PROPERTY_2, 14, 'failure', undefined, NOW);
+    await down.execute(PROPERTY_2, 14, 'failure', undefined, NOW);
     expect(down.sharedMemory().getBeta()).toBeLessThan(before);
   });
 
-  it('applies an authorized budget override', () => {
+  it('applies an authorized budget override', async () => {
     const service = new InventoryService(new InventoryRepository(), new SharedMemory());
-    const plan = service.plan(PROPERTY_2, 14, NOW, { authorized: true, budget: 1000 });
+    const plan = await service.plan(PROPERTY_2, 14, NOW, { authorized: true, budget: 1000 });
     expect(plan.budget).toBe(1000);
     expect(plan.memoryVersion).toBeGreaterThan(0);
   });

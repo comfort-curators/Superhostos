@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { arrayContains, eq, sql } from 'drizzle-orm';
+import { getDb } from '../../db/client';
+import { inventoryItems as itemsTable, vendorOptions as vendorsTable } from '../../db/schema';
 import type { InventoryItem, VendorOption } from './contracts';
 
 const PROPERTY_1 = '00000000-0000-0000-0000-000000000001';
@@ -27,39 +30,75 @@ function seedVendors(): VendorOption[] {
   ];
 }
 
-// Per-property budget for the current operational cycle.
+// Per-property budget for the current operational cycle (configuration, not an
+// entity — kept synchronous).
 const BUDGETS: Record<string, number> = {
   [PROPERTY_1]: 400,
   [PROPERTY_2]: 250,
   [PROPERTY_3]: 120
 };
 
-export class InventoryRepository {
-  private readonly items: InventoryItem[] = seedItems();
-  private readonly vendors: VendorOption[] = seedVendors();
+type ItemRow = typeof itemsTable.$inferSelect;
+type VendorRow = typeof vendorsTable.$inferSelect;
+const itemRowTo = (r: ItemRow): InventoryItem => ({ id: r.id, propertyId: r.propertyId, sku: r.sku, name: r.name, category: r.category, unit: r.unit, onHand: r.onHand, parLevel: r.parLevel, baseDailyUsage: r.baseDailyUsage });
+const vendorRowTo = (r: VendorRow): VendorOption => ({ id: r.id, name: r.name, skus: r.skus, unitPrice: r.unitPrice, leadTimeDays: r.leadTimeDays, reliability: r.reliability });
 
-  listItems(propertyId?: string): InventoryItem[] {
-    return this.items.filter((item) => (propertyId ? item.propertyId === propertyId : true));
+/**
+ * Inventory catalogue (items + vendors). Uses Postgres when DATABASE_URL is set,
+ * otherwise an in-memory seed for dev/tests/demos. Budgets are configuration and
+ * remain synchronous.
+ */
+export class InventoryRepository {
+  private readonly items: InventoryItem[] = getDb() ? [] : seedItems();
+  private readonly vendors: VendorOption[] = getDb() ? [] : seedVendors();
+
+  async listItems(propertyId?: string): Promise<InventoryItem[]> {
+    const db = getDb();
+    if (!db) return this.items.filter((item) => (propertyId ? item.propertyId === propertyId : true));
+    const rows = await db
+      .select()
+      .from(itemsTable)
+      .where(propertyId ? eq(itemsTable.propertyId, propertyId) : undefined)
+      .orderBy(itemsTable.name);
+    return rows.map(itemRowTo);
   }
 
-  findItem(id: string): InventoryItem | undefined {
-    return this.items.find((item) => item.id === id);
+  async findItem(id: string): Promise<InventoryItem | undefined> {
+    const db = getDb();
+    if (!db) return this.items.find((item) => item.id === id);
+    const [row] = await db.select().from(itemsTable).where(eq(itemsTable.id, id)).limit(1);
+    return row ? itemRowTo(row) : undefined;
   }
 
   /** Vendors able to fulfil a given SKU. */
-  vendorsForSku(sku: string): VendorOption[] {
-    return this.vendors.filter((vendor) => vendor.skus.includes(sku));
+  async vendorsForSku(sku: string): Promise<VendorOption[]> {
+    const db = getDb();
+    if (!db) return this.vendors.filter((vendor) => vendor.skus.includes(sku));
+    const rows = await db.select().from(vendorsTable).where(arrayContains(vendorsTable.skus, [sku]));
+    return rows.map(vendorRowTo);
   }
 
-  findVendor(id: string): VendorOption | undefined {
-    return this.vendors.find((vendor) => vendor.id === id);
+  async findVendor(id: string): Promise<VendorOption | undefined> {
+    const db = getDb();
+    if (!db) return this.vendors.find((vendor) => vendor.id === id);
+    const [row] = await db.select().from(vendorsTable).where(eq(vendorsTable.id, id)).limit(1);
+    return row ? vendorRowTo(row) : undefined;
   }
 
-  adjustOnHand(itemId: string, delta: number): InventoryItem | undefined {
-    const item = this.findItem(itemId);
-    if (!item) return undefined;
-    item.onHand = Math.max(0, item.onHand + delta);
-    return item;
+  async adjustOnHand(itemId: string, delta: number): Promise<InventoryItem | undefined> {
+    const db = getDb();
+    if (!db) {
+      const item = this.items.find((i) => i.id === itemId);
+      if (!item) return undefined;
+      item.onHand = Math.max(0, item.onHand + delta);
+      return item;
+    }
+    const [row] = await db
+      .update(itemsTable)
+      .set({ onHand: sql`GREATEST(0, ${itemsTable.onHand} + ${delta})` })
+      .where(eq(itemsTable.id, itemId))
+      .returning();
+    return row ? itemRowTo(row) : undefined;
   }
 
   budgetFor(propertyId: string): number {

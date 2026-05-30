@@ -37,13 +37,13 @@ export class InventoryOrchestrator {
     private readonly agents: AgentBundle = defaultAgents()
   ) {}
 
-  decide(
+  async decide(
     item: InventoryItem,
     horizonDays: number,
     budgetRemaining: number,
     now: Date = new Date(),
     override?: OverrideSignal
-  ): ReplenishmentDecision {
+  ): Promise<ReplenishmentDecision> {
     const notes: string[] = [];
     const beta = this.memory.getBeta();
     const occupancyRate = this.agents.booking.occupancyRate(item.propertyId, horizonDays, now);
@@ -82,7 +82,7 @@ export class InventoryOrchestrator {
 
     if (forecast.recommendedQty <= 0) return skip('skipped', ['On-hand stock covers forecast + par level']);
 
-    const candidates = this.repository.vendorsForSku(item.sku);
+    const candidates = await this.repository.vendorsForSku(item.sku);
     if (candidates.length === 0) return skip('fallback', [`No vendor can fulfil SKU ${item.sku}`]);
 
     // --- multi-agent consensus over the vendor candidates ---
