@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useUser } from '@clerk/clerk-react';
 import { useToast } from './Toast';
 
 const ITEMS = [
@@ -9,7 +10,14 @@ const ITEMS = [
   { label: 'Help & docs', hint: 'Guides and support' }
 ] as const;
 
-export const UserMenu = ({ name = 'Alex Morgan', role = 'Operations Lead' }: { name?: string; role?: string }) => {
+/** Auth-bound account menu: reflects the signed-in Clerk user. */
+export const ClerkAccountMenu = () => {
+  const { user } = useUser();
+  const name = user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'Host';
+  return <UserMenu name={name} role="Host" />;
+};
+
+export const UserMenu = ({ name = 'Host', role = 'Operations' }: { name?: string; role?: string }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const toast = useToast();

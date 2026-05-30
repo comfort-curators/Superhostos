@@ -1,7 +1,10 @@
 import { Link, useLocation } from 'wouter';
 import type { PropsWithChildren } from 'react';
 import { Footer } from '../Footer';
-import { UserMenu } from '../UserMenu';
+import { ClerkAccountMenu, UserMenu } from '../UserMenu';
+
+// Stable for the app's lifetime — safe to branch hook usage on.
+const authEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
 const nav = [
   ['/', 'Dashboard'],
@@ -62,7 +65,7 @@ export const AppLayout = ({ children }: PropsWithChildren) => {
                 <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
                 Live ops
               </span>
-              <UserMenu />
+              {authEnabled ? <ClerkAccountMenu /> : <UserMenu />}
             </div>
           </div>
         </header>

@@ -13,13 +13,6 @@ const Shell = ({ title, subtitle }: { title: string; subtitle: string }) => (
   </motion.section>
 );
 
-const StatCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-2xl border border-line bg-card p-5">
-    <p className="text-[11px] uppercase tracking-[0.14em] text-muted">{label}</p>
-    <p className="mt-1.5 font-display text-2xl text-ink">{value}</p>
-  </div>
-);
-
 const OpsPage = ({ title, subtitle, domain }: { title: string; subtitle: string; domain: string }) => {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('all');
@@ -67,10 +60,10 @@ const OpsPage = ({ title, subtitle, domain }: { title: string; subtitle: string;
   </section>;
 };
 
-export const DashboardPage = () => <section className="space-y-4 pb-20 md:pb-0"><Shell title="Dashboard" subtitle="Portfolio health, occupancy, RevPAR, and operations at a glance." /><div className="grid grid-cols-2 gap-3 md:grid-cols-4"><StatCard label="Occupancy" value="84%" /><StatCard label="ADR" value="$246" /><StatCard label="RevPAR" value="$206" /><StatCard label="Open Tasks" value="37" /></div><div className="rounded-2xl border border-line bg-card p-6"><p className="font-display text-lg text-ink">Today’s Operations Snapshot</p><ul className="mt-3 space-y-2 text-sm text-muted"><li>• 12 turnovers scheduled before 3PM check-in window.</li><li>• 4 maintenance issues escalated to vendors.</li><li>• 18 guest threads pending response under 15 minutes SLA.</li></ul></div></section>;
+export { DashboardPage } from './Dashboard';
+export { CalendarPage } from './Calendar';
 export const PropertiesPage = () => { const { data, isLoading, isError } = useProperties(); return <section className="space-y-4 pb-20 md:pb-0"><Shell title="Properties" subtitle="Manage listings, status, and operating details." />{isLoading ? <LoadingSkeleton rows={4} /> : null}{isError ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-700">Failed to load properties.</p> : null}<div className="grid grid-cols-1 gap-3 md:grid-cols-2">{data?.map((p: PropertyDto) => <article key={p.id} className="rounded-3xl border border-line bg-card p-5"><p className="font-medium">{p.name}</p><p className="text-sm text-muted">{p.city} · {p.timezone}</p></article>)}</div></section>; };
 export const PropertyDetailPage = () => <Shell title="Property Detail" subtitle="Operations detail, bookings, cleaning, maintenance, and comms." />;
-export const CalendarPage = () => <OpsPage title="Master Calendar" subtitle="Unified availability and sync controls." domain="calendars" />;
 export const HousekeepingPage = () => <OpsPage title="Housekeeping" subtitle="Daily turns and assignment balancing." domain="housekeeping" />;
 export const MaintenancePage = () => <OpsPage title="Maintenance" subtitle="Issue triage and vendor dispatch." domain="maintenance" />;
 export const VendorsPage = () => <OpsPage title="Vendors" subtitle="Provider roster and performance." domain="vendors" />;
