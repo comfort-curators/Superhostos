@@ -29,28 +29,35 @@ const TRANSITIONS: Record<BookingStatus, ReadonlyArray<BookingStatus>> = {
   cancelled: []
 };
 
+// The persisted record already carries every field the contract exposes
+// (propertyName is denormalised at write time), so this is a pass-through.
+function toContract(record: BookingRecord): BookingDto {
+  return { ...record };
+}
+
 export class BookingsService {
   constructor(
     private readonly repository: BookingsRepository = new BookingsRepository(),
     private readonly properties: PropertiesRepository = new PropertiesRepository()
   ) {}
 
-  list(filter: BookingFilter = {}): BookingDto[] {
-    return this.repository.list(filter).map((record) => this.toContract(record));
+  async list(filter: BookingFilter = {}): Promise<BookingDto[]> {
+    return (await this.repository.list(filter)).map(toContract);
   }
 
-  get(id: string): BookingDto {
-    return this.toContract(this.requireBooking(id));
+  async get(id: string): Promise<BookingDto> {
+    return toContract(await this.requireBooking(id));
   }
 
-  create(input: unknown): BookingDto {
+  async create(input: unknown): Promise<BookingDto> {
     const payload: CreateBookingInput = createBookingSchema.parse(input);
 
-    if (!this.properties.findById(payload.propertyId)) {
+    const property = await this.properties.findById(payload.propertyId);
+    if (!property) {
       throw new BookingError(404, `Property ${payload.propertyId} not found`);
     }
 
-    const conflicts = this.repository.findConflicts(payload.propertyId, payload);
+    const conflicts = await this.repository.findConflicts(payload.propertyId, payload);
     if (conflicts.length > 0) {
       throw new BookingError(409, 'Booking dates conflict with an existing reservation', {
         conflicts: conflicts.map((conflict) => ({
@@ -66,6 +73,7 @@ export class BookingsService {
     const record: BookingRecord = {
       id: randomUUID(),
       propertyId: payload.propertyId,
+      propertyName: property.name,
       source: payload.source,
       externalReservationId: payload.externalReservationId ?? `SHO-${randomUUID().slice(0, 8).toUpperCase()}`,
       guestName: payload.guestName,
@@ -78,23 +86,23 @@ export class BookingsService {
       updatedAt: now
     };
 
-    return this.toContract(this.repository.insert(record));
+    return toContract(await this.repository.insert(record));
   }
 
-  checkIn(id: string): BookingDto {
+  checkIn(id: string): Promise<BookingDto> {
     return this.transition(id, 'checked_in');
   }
 
-  checkOut(id: string): BookingDto {
+  checkOut(id: string): Promise<BookingDto> {
     return this.transition(id, 'checked_out');
   }
 
-  cancel(id: string): BookingDto {
+  cancel(id: string): Promise<BookingDto> {
     return this.transition(id, 'cancelled');
   }
 
-  stats(filter: BookingFilter = {}): BookingStats {
-    const bookings = this.repository.list(filter);
+  async stats(filter: BookingFilter = {}): Promise<BookingStats> {
+    const bookings = await this.repository.list(filter);
     const byStatus = bookings.reduce<Record<string, number>>((acc, booking) => {
       acc[booking.status] = (acc[booking.status] ?? 0) + 1;
       return acc;
@@ -108,27 +116,19 @@ export class BookingsService {
     };
   }
 
-  private transition(id: string, next: BookingStatus): BookingDto {
-    const booking = this.requireBooking(id);
+  private async transition(id: string, next: BookingStatus): Promise<BookingDto> {
+    const booking = await this.requireBooking(id);
     if (!TRANSITIONS[booking.status].includes(next)) {
       throw new BookingError(409, `Cannot move booking from ${booking.status} to ${next}`);
     }
-    const updated = this.repository.update(id, { status: next });
+    const updated = await this.repository.update(id, { status: next });
     if (!updated) throw new BookingError(404, `Booking ${id} not found`);
-    return this.toContract(updated);
+    return toContract(updated);
   }
 
-  private requireBooking(id: string): BookingRecord {
-    const booking = this.repository.findById(id);
+  private async requireBooking(id: string): Promise<BookingRecord> {
+    const booking = await this.repository.findById(id);
     if (!booking) throw new BookingError(404, `Booking ${id} not found`);
     return booking;
-  }
-
-  private toContract(record: BookingRecord): BookingDto {
-    const property = this.properties.findById(record.propertyId);
-    return {
-      ...record,
-      propertyName: property?.name ?? 'Unknown property'
-    };
   }
 }

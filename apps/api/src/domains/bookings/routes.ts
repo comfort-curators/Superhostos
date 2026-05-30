@@ -40,7 +40,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.post('/bookings', { schema: { tags: ['bookings'] } }, async (req, reply) => {
-    const created = service.create(req.body);
+    const created = await service.create(req.body);
     return reply.code(201).send(created);
   });
 

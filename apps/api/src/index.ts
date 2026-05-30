@@ -14,6 +14,8 @@ import { ordersRoutes } from './domains/orders/routes';
 import { ai_repliesRoutes } from './domains/ai-replies/routes';
 import { analyticsRoutes } from './domains/analytics/routes';
 import { authRoutes } from './domains/auth/routes';
+import { inventoryRoutes } from './domains/inventory/routes';
+import { aiRoutes } from './domains/ai/routes';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -32,6 +34,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(ai_repliesRoutes, { prefix: '/v1' });
   await app.register(analyticsRoutes, { prefix: '/v1' });
   await app.register(authRoutes, { prefix: '/v1' });
+  await app.register(inventoryRoutes, { prefix: '/v1' });
+  await app.register(aiRoutes, { prefix: '/v1' });
   return app;
 }
 
