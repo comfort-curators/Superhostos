@@ -1,5 +1,5 @@
-import { BookingsRepository } from '../../bookings/repository';
 import { clamp } from '../math';
+import { defaultOccupancySource, type OccupancySource } from '../occupancy';
 
 const MS_PER_DAY = 86_400_000;
 // Reservations in these states consume amenities / drive demand.
@@ -12,23 +12,23 @@ function toDay(iso: string): number {
 /**
  * Booking Agent (patent §4.3).
  *
- * Reads forward-looking occupancy from the bookings domain and exposes it as a
- * demand signal in [0, 1] (occupied-room-nights / horizon-nights) for the
- * Inventory Agent, via the shared memory layer rather than direct coupling.
+ * Exposes forward-looking occupancy as a demand signal in [0, 1]
+ * (occupied-room-nights / horizon-nights) for the Inventory Agent. It reads from
+ * a synchronous occupancy snapshot, decoupled from the async bookings store.
  */
 export class BookingAgent {
-  constructor(private readonly bookings: BookingsRepository = new BookingsRepository()) {}
+  constructor(private readonly source: OccupancySource = defaultOccupancySource) {}
 
   occupancyRate(propertyId: string, horizonDays: number, now: Date = new Date()): number {
     const windowStart = Math.floor(now.getTime() / MS_PER_DAY);
     const windowEnd = windowStart + horizonDays;
 
-    const occupiedNights = this.bookings
-      .list({ propertyId })
-      .filter((booking) => ACTIVE.has(booking.status))
-      .reduce((acc, booking) => {
-        const start = Math.max(toDay(booking.checkIn), windowStart);
-        const end = Math.min(toDay(booking.checkOut), windowEnd);
+    const occupiedNights = this.source
+      .staysFor(propertyId)
+      .filter((stay) => ACTIVE.has(stay.status))
+      .reduce((acc, stay) => {
+        const start = Math.max(toDay(stay.checkIn), windowStart);
+        const end = Math.min(toDay(stay.checkOut), windowEnd);
         return acc + Math.max(0, end - start);
       }, 0);
 

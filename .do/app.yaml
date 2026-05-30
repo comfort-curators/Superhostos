@@ -71,6 +71,19 @@ static_sites:
         scope: BUILD_TIME
         value: ""
 
+jobs:
+  # Runs the SQL migrations against the managed Postgres before each deploy.
+  - name: migrate
+    kind: PRE_DEPLOY
+    dockerfile_path: apps/api/Dockerfile
+    source_dir: /
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    run_command: node dist/db/migrate.js
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        value: ${db.DATABASE_URL}
+
 databases:
   - name: db
     engine: PG

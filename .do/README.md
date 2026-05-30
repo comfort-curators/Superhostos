@@ -58,9 +58,12 @@ instructed.
 
 - **Databases are `production: false`** (dev tier) for the trial. For real
   traffic, set `production: true` and add `size`/`num_nodes` in `app.yaml`.
-- **Migrations:** the API currently runs on in-memory repositories; once the
-  Drizzle schema is wired to Postgres, add a pre-deploy `job` in the spec to run
-  migrations against `${db.DATABASE_URL}`.
+- **Migrations:** the `migrate` PRE_DEPLOY job applies `apps/api/src/db/migrations/*.sql`
+  against `${db.DATABASE_URL}` before each deploy (idempotent). The **bookings**
+  domain persists to Postgres whenever `DATABASE_URL` is set; without it the API
+  falls back to in-memory stores (handy for local dev and demos). Other domains
+  (properties, inventory) still use seeded/in-memory data — they follow the same
+  dual-mode pattern when you're ready to persist them.
 - **DO Inference Cloud:** your Inference trial can back the AI provider
   abstraction (OpenAI-compatible endpoint). When ready, add the inference base
   URL + key as API secrets and point the provider at it — no app re-architecture
