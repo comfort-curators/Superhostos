@@ -18,20 +18,25 @@
  */
 export function softmax(utilities: number[], beta = 1): number[] {
   if (utilities.length === 0) return [];
-  if (!Number.isFinite(beta) || beta < 0) throw new Error('beta must be a non-negative finite number');
+  if (!Number.isFinite(beta) || beta < 0)
+    throw new Error("beta must be a non-negative finite number");
 
   const scaled = utilities.map((u) => beta * u);
   const max = Math.max(...scaled);
   const exps = scaled.map((s) => Math.exp(s - max));
   const sum = exps.reduce((acc, value) => acc + value, 0);
   // Guard against the degenerate all-equal / zero-sum case.
-  if (sum === 0 || !Number.isFinite(sum)) return utilities.map(() => 1 / utilities.length);
+  if (sum === 0 || !Number.isFinite(sum))
+    return utilities.map(() => 1 / utilities.length);
   return exps.map((value) => value / sum);
 }
 
 /** Shannon entropy (in nats) of a probability distribution. */
 export function shannonEntropy(probabilities: number[]): number {
-  return -probabilities.reduce((acc, p) => (p > 0 ? acc + p * Math.log(p) : acc), 0);
+  return -probabilities.reduce(
+    (acc, p) => (p > 0 ? acc + p * Math.log(p) : acc),
+    0,
+  );
 }
 
 /**
@@ -49,7 +54,11 @@ export function normalizedEntropy(probabilities: number[]): number {
 export function argmax(values: number[]): number {
   let best = 0;
   for (let i = 1; i < values.length; i += 1) {
-    if ((values[i] ?? Number.NEGATIVE_INFINITY) > (values[best] ?? Number.NEGATIVE_INFINITY)) best = i;
+    if (
+      (values[i] ?? Number.NEGATIVE_INFINITY) >
+      (values[best] ?? Number.NEGATIVE_INFINITY)
+    )
+      best = i;
   }
   return best;
 }

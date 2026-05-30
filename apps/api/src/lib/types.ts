@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'manager' | 'operator' | 'vendor';
+export type UserRole = "admin" | "manager" | "operator" | "vendor";
 
 export interface AuthContext {
   userId: string;

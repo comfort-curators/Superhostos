@@ -1,4 +1,4 @@
-import { round2 } from '../math';
+import { round2 } from "../math";
 
 export interface FinanceVerdict {
   approvedQty: number;
@@ -16,7 +16,11 @@ export interface FinanceVerdict {
  * order is blocked.
  */
 export class FinanceAgent {
-  evaluate(recommendedQty: number, unitPrice: number, budgetRemaining: number): FinanceVerdict {
+  evaluate(
+    recommendedQty: number,
+    unitPrice: number,
+    budgetRemaining: number,
+  ): FinanceVerdict {
     const notes: string[] = [];
     const fullCost = round2(recommendedQty * unitPrice);
 
@@ -25,16 +29,30 @@ export class FinanceAgent {
     }
 
     if (fullCost <= budgetRemaining) {
-      return { approvedQty: recommendedQty, cost: fullCost, withinBudget: true, notes };
+      return {
+        approvedQty: recommendedQty,
+        cost: fullCost,
+        withinBudget: true,
+        notes,
+      };
     }
 
     const affordableQty = Math.floor(budgetRemaining / unitPrice);
     if (affordableQty <= 0) {
-      notes.push(`Budget exhausted: need ${fullCost.toFixed(2)}, ${budgetRemaining.toFixed(2)} remaining`);
+      notes.push(
+        `Budget exhausted: need ${fullCost.toFixed(2)}, ${budgetRemaining.toFixed(2)} remaining`,
+      );
       return { approvedQty: 0, cost: 0, withinBudget: false, notes };
     }
 
-    notes.push(`Quantity reduced ${recommendedQty} -> ${affordableQty} to fit remaining budget`);
-    return { approvedQty: affordableQty, cost: round2(affordableQty * unitPrice), withinBudget: false, notes };
+    notes.push(
+      `Quantity reduced ${recommendedQty} -> ${affordableQty} to fit remaining budget`,
+    );
+    return {
+      approvedQty: affordableQty,
+      cost: round2(affordableQty * unitPrice),
+      withinBudget: false,
+      notes,
+    };
   }
 }

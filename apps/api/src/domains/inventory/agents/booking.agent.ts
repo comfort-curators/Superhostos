@@ -1,9 +1,9 @@
-import { clamp } from '../math';
-import { defaultOccupancySource, type OccupancySource } from '../occupancy';
+import { clamp } from "../math";
+import { type OccupancySource, defaultOccupancySource } from "../occupancy";
 
 const MS_PER_DAY = 86_400_000;
 // Reservations in these states consume amenities / drive demand.
-const ACTIVE = new Set(['confirmed', 'checked_in']);
+const ACTIVE = new Set(["confirmed", "checked_in"]);
 
 function toDay(iso: string): number {
   return Math.floor(new Date(`${iso}T00:00:00Z`).getTime() / MS_PER_DAY);
@@ -17,9 +17,15 @@ function toDay(iso: string): number {
  * a synchronous occupancy snapshot, decoupled from the async bookings store.
  */
 export class BookingAgent {
-  constructor(private readonly source: OccupancySource = defaultOccupancySource) {}
+  constructor(
+    private readonly source: OccupancySource = defaultOccupancySource,
+  ) {}
 
-  occupancyRate(propertyId: string, horizonDays: number, now: Date = new Date()): number {
+  occupancyRate(
+    propertyId: string,
+    horizonDays: number,
+    now: Date = new Date(),
+  ): number {
     const windowStart = Math.floor(now.getTime() / MS_PER_DAY);
     const windowEnd = windowStart + horizonDays;
 

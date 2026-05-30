@@ -1,6 +1,6 @@
-import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
-import * as schema from './schema';
+import { type NodePgDatabase, drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import * as schema from "./schema";
 
 export type Database = NodePgDatabase<typeof schema>;
 
@@ -21,10 +21,17 @@ export function getDb(): Database | null {
   if (!db) {
     const connectionString = process.env.DATABASE_URL as string;
     // Managed Postgres (e.g. DigitalOcean) terminates TLS with its own chain.
-    const ssl = /sslmode=require/.test(connectionString) || process.env.NODE_ENV === 'production'
-      ? { rejectUnauthorized: false }
-      : undefined;
-    pool = new Pool({ connectionString, ssl, max: 10, idleTimeoutMillis: 30_000 });
+    const ssl =
+      /sslmode=require/.test(connectionString) ||
+      process.env.NODE_ENV === "production"
+        ? { rejectUnauthorized: false }
+        : undefined;
+    pool = new Pool({
+      connectionString,
+      ssl,
+      max: 10,
+      idleTimeoutMillis: 30_000,
+    });
     db = drizzle(pool, { schema });
   }
   return db;

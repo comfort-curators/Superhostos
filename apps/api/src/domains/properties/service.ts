@@ -1,10 +1,10 @@
-import { z } from 'zod';
-import type { PropertiesRepository } from './repository';
+import { z } from "zod";
+import type { PropertiesRepository } from "./repository";
 
 export const createPropertySchema = z.object({
   name: z.string().min(2),
   city: z.string().min(2),
-  timezone: z.string().min(2)
+  timezone: z.string().min(2),
 });
 
 export class PropertiesService {

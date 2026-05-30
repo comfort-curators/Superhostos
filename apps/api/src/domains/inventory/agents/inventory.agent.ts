@@ -1,5 +1,5 @@
-import type { InventoryItem } from '../contracts';
-import { round2 } from '../math';
+import type { InventoryItem } from "../contracts";
+import { round2 } from "../math";
 
 // Even an empty property consumes some stock (turnovers, cleaning, spoilage).
 const USAGE_FLOOR = 0.25;
@@ -33,18 +33,33 @@ export function seasonalFactor(now: Date): number {
  * and the configured par level.
  */
 export class InventoryAgent {
-  forecast(item: InventoryItem, occupancyRate: number, horizonDays: number, now: Date = new Date()): DemandForecast {
+  forecast(
+    item: InventoryItem,
+    occupancyRate: number,
+    horizonDays: number,
+    now: Date = new Date(),
+  ): DemandForecast {
     const season = seasonalFactor(now);
     const usageMultiplier = USAGE_FLOOR + occupancyRate;
-    const forecastDemand = round2(item.baseDailyUsage * usageMultiplier * horizonDays * season);
+    const forecastDemand = round2(
+      item.baseDailyUsage * usageMultiplier * horizonDays * season,
+    );
 
     // Demand variance ~ forecast for count data; safety stock = z * sqrt(mean).
-    const safetyBuffer = round2(SERVICE_Z * Math.sqrt(Math.max(forecastDemand, 0)));
+    const safetyBuffer = round2(
+      SERVICE_Z * Math.sqrt(Math.max(forecastDemand, 0)),
+    );
 
     // Cover the forecast + buffer, but never let on-hand sit below par.
     const target = Math.max(forecastDemand + safetyBuffer, item.parLevel);
     const recommendedQty = Math.max(0, Math.ceil(target - item.onHand));
 
-    return { occupancyRate, seasonalFactor: season, forecastDemand, safetyBuffer, recommendedQty };
+    return {
+      occupancyRate,
+      seasonalFactor: season,
+      forecastDemand,
+      safetyBuffer,
+      recommendedQty,
+    };
   }
 }

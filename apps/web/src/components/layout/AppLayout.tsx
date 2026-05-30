@@ -1,25 +1,25 @@
-import { Link, useLocation } from 'wouter';
-import type { PropsWithChildren } from 'react';
-import { Footer } from '../Footer';
-import { ClerkAccountMenu, UserMenu } from '../UserMenu';
+import type { PropsWithChildren } from "react";
+import { Link, useLocation } from "wouter";
+import { Footer } from "../Footer";
+import { ClerkAccountMenu, UserMenu } from "../UserMenu";
 
 // Stable for the app's lifetime — safe to branch hook usage on.
 const authEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
 const nav = [
-  ['/', 'Dashboard'],
-  ['/properties', 'Properties'],
-  ['/bookings', 'Bookings'],
-  ['/calendar', 'Master Calendar'],
-  ['/housekeeping', 'Housekeeping'],
-  ['/inventory', 'Inventory'],
-  ['/maintenance', 'Maintenance'],
-  ['/vendors', 'Vendors'],
-  ['/orders', 'Orders'],
-  ['/messages', 'Guest Messages'],
-  ['/ai-reply', 'AI Reply'],
-  ['/analytics', 'Analytics'],
-  ['/settings', 'Settings']
+  ["/", "Dashboard"],
+  ["/properties", "Properties"],
+  ["/bookings", "Bookings"],
+  ["/calendar", "Master Calendar"],
+  ["/housekeeping", "Housekeeping"],
+  ["/inventory", "Inventory"],
+  ["/maintenance", "Maintenance"],
+  ["/vendors", "Vendors"],
+  ["/orders", "Orders"],
+  ["/messages", "Guest Messages"],
+  ["/ai-reply", "AI Reply"],
+  ["/analytics", "Analytics"],
+  ["/settings", "Settings"],
 ] as const;
 
 const Wordmark = () => (
@@ -30,13 +30,15 @@ const Wordmark = () => (
 
 export const AppLayout = ({ children }: PropsWithChildren) => {
   const [path] = useLocation();
-  const current = nav.find(([href]) => href === path)?.[1] ?? 'SuperhostOS';
+  const current = nav.find(([href]) => href === path)?.[1] ?? "SuperhostOS";
 
   return (
     <div className="min-h-screen bg-cream text-ink">
       <aside className="fixed inset-y-0 hidden w-72 flex-col border-r border-line bg-ivory p-6 md:flex">
         <Wordmark />
-        <p className="mb-8 mt-1 text-xs uppercase tracking-[0.18em] text-muted">Curated Stays, Crafted Elegance</p>
+        <p className="mb-8 mt-1 text-xs uppercase tracking-[0.18em] text-muted">
+          Curated Stays, Crafted Elegance
+        </p>
         <nav className="space-y-0.5">
           {nav.map(([href, label]) => {
             const active = path === href;
@@ -45,7 +47,9 @@ export const AppLayout = ({ children }: PropsWithChildren) => {
                 key={href}
                 href={href}
                 className={`block rounded-xl px-3 py-2 text-sm transition-colors ${
-                  active ? 'bg-ink text-ivory' : 'text-ink/70 hover:bg-sand/60 hover:text-ink'
+                  active
+                    ? "bg-ink text-ivory"
+                    : "text-ink/70 hover:bg-sand/60 hover:text-ink"
                 }`}
               >
                 {label}
@@ -53,7 +57,9 @@ export const AppLayout = ({ children }: PropsWithChildren) => {
             );
           })}
         </nav>
-        <p className="mt-auto pt-6 text-[11px] text-muted">Comfort Curators · SuperhostOS</p>
+        <p className="mt-auto pt-6 text-[11px] text-muted">
+          Comfort Curators · SuperhostOS
+        </p>
       </aside>
 
       <div className="md:ml-72">
@@ -76,9 +82,9 @@ export const AppLayout = ({ children }: PropsWithChildren) => {
             <Link
               key={href}
               href={href}
-              className={`rounded-lg px-2 py-2 text-center text-xs ${path === href ? 'bg-ink text-ivory' : 'text-muted'}`}
+              className={`rounded-lg px-2 py-2 text-center text-xs ${path === href ? "bg-ink text-ivory" : "text-muted"}`}
             >
-              {label.split(' ')[0]}
+              {label.split(" ")[0]}
             </Link>
           ))}
         </nav>

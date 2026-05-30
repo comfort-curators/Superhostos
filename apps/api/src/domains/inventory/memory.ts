@@ -1,5 +1,5 @@
-import type { ReplenishmentDecision } from './contracts';
-import { clamp } from './math';
+import type { ReplenishmentDecision } from "./contracts";
+import { clamp } from "./math";
 
 export const DEFAULT_BETA = 6;
 const BETA_MIN = 0; // 0 = full exploration (uniform softmax)
@@ -9,7 +9,13 @@ export interface MemoryVersionEntry {
   version: number;
   timestamp: string;
   agent: string;
-  kind: 'reliability' | 'spend' | 'decision' | 'beta' | 'agent_weight' | 'override';
+  kind:
+    | "reliability"
+    | "spend"
+    | "decision"
+    | "beta"
+    | "agent_weight"
+    | "override";
   key: string;
   value: number | string;
 }
@@ -53,9 +59,21 @@ export class SharedMemory {
     return this.currentVersion;
   }
 
-  private commit(agent: string, kind: MemoryVersionEntry['kind'], key: string, value: number | string): number {
+  private commit(
+    agent: string,
+    kind: MemoryVersionEntry["kind"],
+    key: string,
+    value: number | string,
+  ): number {
     this.currentVersion += 1;
-    this.log.push({ version: this.currentVersion, timestamp: new Date().toISOString(), agent, kind, key, value });
+    this.log.push({
+      version: this.currentVersion,
+      timestamp: new Date().toISOString(),
+      agent,
+      kind,
+      key,
+      value,
+    });
     return this.currentVersion;
   }
 
@@ -67,7 +85,7 @@ export class SharedMemory {
   /** Nudge beta toward exploitation (positive) or exploration (negative). */
   updateBeta(delta: number): number {
     this.beta = clamp(this.beta + delta, BETA_MIN, BETA_MAX);
-    this.commit('rl', 'beta', 'beta', this.beta);
+    this.commit("rl", "beta", "beta", this.beta);
     return this.beta;
   }
 
@@ -80,11 +98,20 @@ export class SharedMemory {
    * Exponential-moving-average update toward the observed outcome
    * (1 = delivered as promised, 0 = failed). `alpha` is the learning rate.
    */
-  updateReliability(vendorId: string, seed: number, success: boolean, alpha = 0.2): number {
+  updateReliability(
+    vendorId: string,
+    seed: number,
+    success: boolean,
+    alpha = 0.2,
+  ): number {
     const current = this.getReliability(vendorId, seed);
-    const updated = clamp((1 - alpha) * current + alpha * (success ? 1 : 0), 0, 1);
+    const updated = clamp(
+      (1 - alpha) * current + alpha * (success ? 1 : 0),
+      0,
+      1,
+    );
     this.reliabilityOverrides.set(vendorId, updated);
-    this.commit('vendor', 'reliability', vendorId, updated);
+    this.commit("vendor", "reliability", vendorId, updated);
     return updated;
   }
 
@@ -95,9 +122,13 @@ export class SharedMemory {
 
   updateAgentWeight(agent: string, success: boolean, alpha = 0.15): number {
     const current = this.getAgentWeight(agent);
-    const updated = clamp((1 - alpha) * current + alpha * (success ? 1 : 0), 0.05, 1);
+    const updated = clamp(
+      (1 - alpha) * current + alpha * (success ? 1 : 0),
+      0.05,
+      1,
+    );
     this.agentWeights.set(agent, updated);
-    this.commit(agent, 'agent_weight', agent, updated);
+    this.commit(agent, "agent_weight", agent, updated);
     return updated;
   }
 
@@ -109,7 +140,7 @@ export class SharedMemory {
   recordSpend(propertyId: string, amount: number): void {
     const total = this.getSpent(propertyId) + amount;
     this.budgetSpent.set(propertyId, total);
-    this.commit('finance', 'spend', propertyId, total);
+    this.commit("finance", "spend", propertyId, total);
   }
 
   resetBudget(propertyId: string): void {
@@ -119,7 +150,12 @@ export class SharedMemory {
   // --- decision log ---
   recordDecision(decision: ReplenishmentDecision): void {
     this.lastDecisions.set(decision.itemId, decision);
-    this.commit('orchestrator', 'decision', decision.itemId, `${decision.mode}:${decision.recommendedQty}`);
+    this.commit(
+      "orchestrator",
+      "decision",
+      decision.itemId,
+      `${decision.mode}:${decision.recommendedQty}`,
+    );
   }
 
   getDecision(itemId: string): ReplenishmentDecision | undefined {
@@ -128,28 +164,43 @@ export class SharedMemory {
 
   /** Record an authorized priority-signal override for audit (patent §4.6). */
   recordOverride(key: string, value: number | string): void {
-    this.commit('operator', 'override', key, value);
+    this.commit("operator", "override", key, value);
   }
 
   // --- query interface & agent-specific views ---
-  query(filter: { agent?: string; kind?: MemoryVersionEntry['kind']; key?: string; sinceVersion?: number } = {}): MemoryVersionEntry[] {
+  query(
+    filter: {
+      agent?: string;
+      kind?: MemoryVersionEntry["kind"];
+      key?: string;
+      sinceVersion?: number;
+    } = {},
+  ): MemoryVersionEntry[] {
     return this.log.filter(
       (entry) =>
         (filter.agent ? entry.agent === filter.agent : true) &&
         (filter.kind ? entry.kind === filter.kind : true) &&
         (filter.key ? entry.key === filter.key : true) &&
-        (filter.sinceVersion !== undefined ? entry.version > filter.sinceVersion : true)
+        (filter.sinceVersion !== undefined
+          ? entry.version > filter.sinceVersion
+          : true),
     );
   }
 
   /** A contextual view scoped to what a given agent needs from the store. */
-  view(agent: string): { agent: string; version: number; beta: number; weight: number; recent: MemoryVersionEntry[] } {
+  view(agent: string): {
+    agent: string;
+    version: number;
+    beta: number;
+    weight: number;
+    recent: MemoryVersionEntry[];
+  } {
     return {
       agent,
       version: this.currentVersion,
       beta: this.beta,
       weight: this.getAgentWeight(agent),
-      recent: this.query({ agent }).slice(-10)
+      recent: this.query({ agent }).slice(-10),
     };
   }
 
@@ -161,7 +212,7 @@ export class SharedMemory {
       reliability: Object.fromEntries(this.reliabilityOverrides),
       spend: Object.fromEntries(this.budgetSpent),
       agentWeights: Object.fromEntries(this.agentWeights),
-      log: [...this.log]
+      log: [...this.log],
     };
   }
 
@@ -172,9 +223,12 @@ export class SharedMemory {
     this.budgetSpent.clear();
     this.agentWeights.clear();
     this.log.length = 0;
-    for (const [k, v] of Object.entries(snapshot.reliability)) this.reliabilityOverrides.set(k, v);
-    for (const [k, v] of Object.entries(snapshot.spend)) this.budgetSpent.set(k, v);
-    for (const [k, v] of Object.entries(snapshot.agentWeights)) this.agentWeights.set(k, v);
+    for (const [k, v] of Object.entries(snapshot.reliability))
+      this.reliabilityOverrides.set(k, v);
+    for (const [k, v] of Object.entries(snapshot.spend))
+      this.budgetSpent.set(k, v);
+    for (const [k, v] of Object.entries(snapshot.agentWeights))
+      this.agentWeights.set(k, v);
     this.log.push(...snapshot.log);
   }
 }

@@ -1,12 +1,22 @@
-import { BookingAgent } from './agents/booking.agent';
-import { FinanceAgent } from './agents/finance.agent';
-import { InventoryAgent } from './agents/inventory.agent';
-import { costOpinion, optimizerOpinion, reliabilityOpinion } from './agents/advisors';
-import { aggregateConsensus } from './consensus';
-import type { InventoryItem, OverrideSignal, ReplenishmentDecision, VendorOption, VendorScore } from './contracts';
-import { SharedMemory } from './memory';
-import { argmax, round2 } from './math';
-import type { InventoryRepository } from './repository';
+import {
+  costOpinion,
+  optimizerOpinion,
+  reliabilityOpinion,
+} from "./agents/advisors";
+import { BookingAgent } from "./agents/booking.agent";
+import { FinanceAgent } from "./agents/finance.agent";
+import { InventoryAgent } from "./agents/inventory.agent";
+import { aggregateConsensus } from "./consensus";
+import type {
+  InventoryItem,
+  OverrideSignal,
+  ReplenishmentDecision,
+  VendorOption,
+  VendorScore,
+} from "./contracts";
+import { argmax, round2 } from "./math";
+import type { SharedMemory } from "./memory";
+import type { InventoryRepository } from "./repository";
 
 // Consensus thresholds (patent §4.4, §4.6).
 const CONFIDENCE_FLOOR = 0.4; // below this -> deterministic fallback
@@ -20,7 +30,11 @@ export interface AgentBundle {
 }
 
 function defaultAgents(): AgentBundle {
-  return { booking: new BookingAgent(), inventory: new InventoryAgent(), finance: new FinanceAgent() };
+  return {
+    booking: new BookingAgent(),
+    inventory: new InventoryAgent(),
+    finance: new FinanceAgent(),
+  };
 }
 
 /**
@@ -34,7 +48,7 @@ export class InventoryOrchestrator {
   constructor(
     private readonly repository: InventoryRepository,
     private readonly memory: SharedMemory,
-    private readonly agents: AgentBundle = defaultAgents()
+    private readonly agents: AgentBundle = defaultAgents(),
   ) {}
 
   async decide(
@@ -42,12 +56,21 @@ export class InventoryOrchestrator {
     horizonDays: number,
     budgetRemaining: number,
     now: Date = new Date(),
-    override?: OverrideSignal
+    override?: OverrideSignal,
   ): Promise<ReplenishmentDecision> {
     const notes: string[] = [];
     const beta = this.memory.getBeta();
-    const occupancyRate = this.agents.booking.occupancyRate(item.propertyId, horizonDays, now);
-    const forecast = this.agents.inventory.forecast(item, occupancyRate, horizonDays, now);
+    const occupancyRate = this.agents.booking.occupancyRate(
+      item.propertyId,
+      horizonDays,
+      now,
+    );
+    const forecast = this.agents.inventory.forecast(
+      item,
+      occupancyRate,
+      horizonDays,
+      now,
+    );
 
     const base = {
       itemId: item.id,
@@ -58,10 +81,13 @@ export class InventoryOrchestrator {
       forecastDemand: forecast.forecastDemand,
       safetyBuffer: forecast.safetyBuffer,
       onHand: item.onHand,
-      betaUsed: round2(beta)
+      betaUsed: round2(beta),
     };
 
-    const skip = (mode: ReplenishmentDecision['mode'], skipNotes: string[]): ReplenishmentDecision => {
+    const skip = (
+      mode: ReplenishmentDecision["mode"],
+      skipNotes: string[],
+    ): ReplenishmentDecision => {
       const decision: ReplenishmentDecision = {
         ...base,
         recommendedQty: 0,
@@ -69,62 +95,86 @@ export class InventoryOrchestrator {
         selectedVendorName: null,
         vendorScores: [],
         consensusContributors: [],
-        confidence: mode === 'skipped' ? 1 : 0,
+        confidence: mode === "skipped" ? 1 : 0,
         entropy: 0,
         estimatedCost: 0,
         withinBudget: true,
         mode,
-        notes: skipNotes
+        notes: skipNotes,
       };
       this.memory.recordDecision(decision);
       return decision;
     };
 
-    if (forecast.recommendedQty <= 0) return skip('skipped', ['On-hand stock covers forecast + par level']);
+    if (forecast.recommendedQty <= 0)
+      return skip("skipped", ["On-hand stock covers forecast + par level"]);
 
     const candidates = await this.repository.vendorsForSku(item.sku);
-    if (candidates.length === 0) return skip('fallback', [`No vendor can fulfil SKU ${item.sku}`]);
+    if (candidates.length === 0)
+      return skip("fallback", [`No vendor can fulfil SKU ${item.sku}`]);
 
     // --- multi-agent consensus over the vendor candidates ---
     const consensus = aggregateConsensus(
       [
-        { agent: 'vendor', weight: this.memory.getAgentWeight('vendor'), distribution: optimizerOpinion(candidates, this.memory, beta) },
-        { agent: 'finance', weight: this.memory.getAgentWeight('finance'), distribution: costOpinion(candidates, this.memory, beta) },
-        { agent: 'reliability', weight: this.memory.getAgentWeight('reliability'), distribution: reliabilityOpinion(candidates, this.memory, beta) }
+        {
+          agent: "vendor",
+          weight: this.memory.getAgentWeight("vendor"),
+          distribution: optimizerOpinion(candidates, this.memory, beta),
+        },
+        {
+          agent: "finance",
+          weight: this.memory.getAgentWeight("finance"),
+          distribution: costOpinion(candidates, this.memory, beta),
+        },
+        {
+          agent: "reliability",
+          weight: this.memory.getAgentWeight("reliability"),
+          distribution: reliabilityOpinion(candidates, this.memory, beta),
+        },
       ],
-      ENTROPY_HIGH
+      ENTROPY_HIGH,
     );
 
     const vendorScores: VendorScore[] = candidates.map((vendor, i) => ({
       vendorId: vendor.id,
       vendorName: vendor.name,
       utility: round2(consensus.distribution[i] ?? 0),
-      probability: round2(consensus.distribution[i] ?? 0)
+      probability: round2(consensus.distribution[i] ?? 0),
     }));
 
     let qty = forecast.recommendedQty;
-    let chosen: VendorOption = candidates[consensus.chosenIndex] ?? this.mostReliable(candidates);
-    let mode: ReplenishmentDecision['mode'] = 'optimized';
+    let chosen: VendorOption =
+      candidates[consensus.chosenIndex] ?? this.mostReliable(candidates);
+    let mode: ReplenishmentDecision["mode"] = "optimized";
 
     // Authorized priority override takes precedence over the optimizer.
-    const forced = override?.authorized && override.forceVendorId
-      ? candidates.find((v) => v.id === override.forceVendorId)
-      : undefined;
+    const forced =
+      override?.authorized && override.forceVendorId
+        ? candidates.find((v) => v.id === override.forceVendorId)
+        : undefined;
     if (forced) {
       chosen = forced;
       notes.push(`Priority override -> vendor ${forced.name}`);
-      this.memory.recordOverride('forceVendor', forced.id);
+      this.memory.recordOverride("forceVendor", forced.id);
     } else if (consensus.confidence < CONFIDENCE_FLOOR) {
       chosen = this.mostReliable(candidates);
-      mode = 'fallback';
-      notes.push(`Low consensus confidence (${consensus.confidence.toFixed(2)}) -> deterministic most-reliable vendor`);
+      mode = "fallback";
+      notes.push(
+        `Low consensus confidence (${consensus.confidence.toFixed(2)}) -> deterministic most-reliable vendor`,
+      );
     } else if (consensus.highUncertainty) {
       qty = Math.ceil(qty * (1 + SAFETY_BUFFER_PCT));
-      mode = 'consensus_buffered';
-      notes.push(`High consensus entropy (${consensus.entropy.toFixed(2)}) -> +${Math.round(SAFETY_BUFFER_PCT * 100)}% safety buffer`);
+      mode = "consensus_buffered";
+      notes.push(
+        `High consensus entropy (${consensus.entropy.toFixed(2)}) -> +${Math.round(SAFETY_BUFFER_PCT * 100)}% safety buffer`,
+      );
     }
 
-    const verdict = this.agents.finance.evaluate(qty, chosen.unitPrice, budgetRemaining);
+    const verdict = this.agents.finance.evaluate(
+      qty,
+      chosen.unitPrice,
+      budgetRemaining,
+    );
     notes.push(...verdict.notes);
 
     const placed = verdict.approvedQty > 0;
@@ -140,14 +190,16 @@ export class InventoryOrchestrator {
       estimatedCost: verdict.cost,
       withinBudget: verdict.withinBudget,
       mode,
-      notes
+      notes,
     };
     this.memory.recordDecision(decision);
     return decision;
   }
 
   private mostReliable(candidates: VendorOption[]): VendorOption {
-    const reliabilities = candidates.map((v) => this.memory.getReliability(v.id, v.reliability));
+    const reliabilities = candidates.map((v) =>
+      this.memory.getReliability(v.id, v.reliability),
+    );
     return candidates[argmax(reliabilities)] ?? (candidates[0] as VendorOption);
   }
 }

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'wouter';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { Link } from "wouter";
 
-const STORAGE_KEY = 'cc-cookie-consent';
-export type ConsentChoice = 'accepted' | 'essential';
+const STORAGE_KEY = "cc-cookie-consent";
+export type ConsentChoice = "accepted" | "essential";
 
 export const CookieConsent = () => {
   const [visible, setVisible] = useState(false);
@@ -33,26 +33,40 @@ export const CookieConsent = () => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 24 }}
           className="fixed inset-x-3 bottom-3 z-[55] mx-auto max-w-3xl rounded-2xl border border-line bg-card p-5 shadow-xl md:inset-x-auto md:right-6 md:bottom-6"
-          role="dialog"
           aria-label="Cookie consent"
         >
-          <p className="font-display text-lg text-ink">We value your stay with us</p>
+          <p className="font-display text-lg text-ink">
+            We value your stay with us
+          </p>
           <p className="mt-1 text-sm text-muted">
-            We use cookies to keep you signed in, remember preferences, and understand how SuperhostOS is used. Read our{' '}
-            <Link href="/legal/cookies" className="text-gold underline underline-offset-2">Cookie Policy</Link> and{' '}
-            <Link href="/legal/privacy" className="text-gold underline underline-offset-2">Privacy Policy</Link>.
+            We use cookies to keep you signed in, remember preferences, and
+            understand how SuperhostOS is used. Read our{" "}
+            <Link
+              href="/legal/cookies"
+              className="text-gold underline underline-offset-2"
+            >
+              Cookie Policy
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/legal/privacy"
+              className="text-gold underline underline-offset-2"
+            >
+              Privacy Policy
+            </Link>
+            .
           </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
             <button
               type="button"
-              onClick={() => decide('essential')}
+              onClick={() => decide("essential")}
               className="rounded-xl border border-line px-4 py-2 text-sm text-ink transition-colors hover:bg-sand/50"
             >
               Essential only
             </button>
             <button
               type="button"
-              onClick={() => decide('accepted')}
+              onClick={() => decide("accepted")}
               className="rounded-xl bg-ink px-4 py-2 text-sm text-ivory transition-colors hover:bg-ink/90"
             >
               Accept all cookies

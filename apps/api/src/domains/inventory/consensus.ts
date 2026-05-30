@@ -1,4 +1,4 @@
-import { argmax, normalizedEntropy } from './math';
+import { argmax, normalizedEntropy } from "./math";
 
 export interface AgentOpinion {
   agent: string;
@@ -27,10 +27,22 @@ export interface ConsensusResult {
  * threshold the result is flagged so callers can apply a conservative safety
  * buffer.
  */
-export function aggregateConsensus(opinions: AgentOpinion[], entropyThreshold: number): ConsensusResult {
-  const usable = opinions.filter((o) => o.weight > 0 && o.distribution.length > 0);
+export function aggregateConsensus(
+  opinions: AgentOpinion[],
+  entropyThreshold: number,
+): ConsensusResult {
+  const usable = opinions.filter(
+    (o) => o.weight > 0 && o.distribution.length > 0,
+  );
   if (usable.length === 0) {
-    return { distribution: [], chosenIndex: -1, confidence: 0, entropy: 0, highUncertainty: true, contributors: [] };
+    return {
+      distribution: [],
+      chosenIndex: -1,
+      confidence: 0,
+      entropy: 0,
+      highUncertainty: true,
+      contributors: [],
+    };
   }
 
   const n = usable[0]?.distribution.length ?? 0;
@@ -39,7 +51,9 @@ export function aggregateConsensus(opinions: AgentOpinion[], entropyThreshold: n
   const aggregated = new Array<number>(n).fill(0);
   for (const opinion of usable) {
     for (let i = 0; i < n; i += 1) {
-      aggregated[i] = (aggregated[i] ?? 0) + (opinion.weight / totalWeight) * (opinion.distribution[i] ?? 0);
+      aggregated[i] =
+        (aggregated[i] ?? 0) +
+        (opinion.weight / totalWeight) * (opinion.distribution[i] ?? 0);
     }
   }
 
@@ -55,6 +69,6 @@ export function aggregateConsensus(opinions: AgentOpinion[], entropyThreshold: n
     confidence: distribution[chosenIndex] ?? 0,
     entropy,
     highUncertainty: entropy > entropyThreshold,
-    contributors: usable.map((o) => ({ agent: o.agent, weight: o.weight }))
+    contributors: usable.map((o) => ({ agent: o.agent, weight: o.weight })),
   };
 }

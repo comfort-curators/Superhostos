@@ -1,8 +1,12 @@
-import { randomUUID } from 'node:crypto';
-import { and, eq, gt, inArray, lt, ne } from 'drizzle-orm';
-import { getDb } from '../../db/client';
-import { bookings as bookingsTable } from '../../db/schema';
-import { bookingDatesOverlap, type BookingSource, type BookingStatus } from './contracts';
+import { randomUUID } from "node:crypto";
+import { and, eq, gt, inArray, lt, ne } from "drizzle-orm";
+import { getDb } from "../../db/client";
+import { bookings as bookingsTable } from "../../db/schema";
+import {
+  type BookingSource,
+  type BookingStatus,
+  bookingDatesOverlap,
+} from "./contracts";
 
 export interface BookingRecord {
   id: string;
@@ -25,7 +29,7 @@ export interface BookingFilter {
   status?: BookingStatus | undefined;
 }
 
-const BLOCKING_STATUSES: BookingStatus[] = ['confirmed', 'checked_in'];
+const BLOCKING_STATUSES: BookingStatus[] = ["confirmed", "checked_in"];
 
 type Row = typeof bookingsTable.$inferSelect;
 
@@ -43,22 +47,57 @@ function rowToRecord(row: Row): BookingRecord {
     status: row.status,
     totalAmount: row.totalAmount,
     createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString()
+    updatedAt: row.updatedAt.toISOString(),
   };
 }
 
 function seed(): BookingRecord[] {
   const now = new Date().toISOString();
-  const make = (record: Omit<BookingRecord, 'id' | 'createdAt' | 'updatedAt'>): BookingRecord => ({
+  const make = (
+    record: Omit<BookingRecord, "id" | "createdAt" | "updatedAt">,
+  ): BookingRecord => ({
     id: randomUUID(),
     createdAt: now,
     updatedAt: now,
-    ...record
+    ...record,
   });
   return [
-    make({ propertyId: '00000000-0000-0000-0000-000000000001', propertyName: 'Nobu Penthouse', source: 'airbnb', externalReservationId: 'AIRBNB-1023', guestName: 'Dana Whitfield', guestCount: 2, checkIn: '2026-06-02', checkOut: '2026-06-06', status: 'confirmed', totalAmount: 1840 }),
-    make({ propertyId: '00000000-0000-0000-0000-000000000002', propertyName: 'Palm Loft', source: 'booking_com', externalReservationId: 'BKG-55120', guestName: 'Marcus Lee', guestCount: 4, checkIn: '2026-05-28', checkOut: '2026-05-31', status: 'checked_in', totalAmount: 1290 }),
-    make({ propertyId: '00000000-0000-0000-0000-000000000003', propertyName: 'Cedar Cabin', source: 'direct', externalReservationId: 'DIR-0007', guestName: 'Priya Nair', guestCount: 3, checkIn: '2026-06-10', checkOut: '2026-06-14', status: 'confirmed', totalAmount: 2120 })
+    make({
+      propertyId: "00000000-0000-0000-0000-000000000001",
+      propertyName: "Nobu Penthouse",
+      source: "airbnb",
+      externalReservationId: "AIRBNB-1023",
+      guestName: "Dana Whitfield",
+      guestCount: 2,
+      checkIn: "2026-06-02",
+      checkOut: "2026-06-06",
+      status: "confirmed",
+      totalAmount: 1840,
+    }),
+    make({
+      propertyId: "00000000-0000-0000-0000-000000000002",
+      propertyName: "Palm Loft",
+      source: "booking_com",
+      externalReservationId: "BKG-55120",
+      guestName: "Marcus Lee",
+      guestCount: 4,
+      checkIn: "2026-05-28",
+      checkOut: "2026-05-31",
+      status: "checked_in",
+      totalAmount: 1290,
+    }),
+    make({
+      propertyId: "00000000-0000-0000-0000-000000000003",
+      propertyName: "Cedar Cabin",
+      source: "direct",
+      externalReservationId: "DIR-0007",
+      guestName: "Priya Nair",
+      guestCount: 3,
+      checkIn: "2026-06-10",
+      checkOut: "2026-06-14",
+      status: "confirmed",
+      totalAmount: 2120,
+    }),
   ];
 }
 
@@ -73,13 +112,17 @@ export class BookingsRepository {
     const db = getDb();
     if (!db) {
       return this.memory
-        .filter((b) => (filter.propertyId ? b.propertyId === filter.propertyId : true))
+        .filter((b) =>
+          filter.propertyId ? b.propertyId === filter.propertyId : true,
+        )
         .filter((b) => (filter.status ? b.status === filter.status : true))
         .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
     }
     const conditions = [
-      filter.propertyId ? eq(bookingsTable.propertyId, filter.propertyId) : undefined,
-      filter.status ? eq(bookingsTable.status, filter.status) : undefined
+      filter.propertyId
+        ? eq(bookingsTable.propertyId, filter.propertyId)
+        : undefined,
+      filter.status ? eq(bookingsTable.status, filter.status) : undefined,
     ].filter((c): c is NonNullable<typeof c> => c !== undefined);
     const rows = await db
       .select()
@@ -92,7 +135,11 @@ export class BookingsRepository {
   async findById(id: string): Promise<BookingRecord | undefined> {
     const db = getDb();
     if (!db) return this.memory.find((b) => b.id === id);
-    const [row] = await db.select().from(bookingsTable).where(eq(bookingsTable.id, id)).limit(1);
+    const [row] = await db
+      .select()
+      .from(bookingsTable)
+      .where(eq(bookingsTable.id, id))
+      .limit(1);
     return row ? rowToRecord(row) : undefined;
   }
 
@@ -100,7 +147,11 @@ export class BookingsRepository {
    * Active bookings on the same property whose dates overlap the given range.
    * Cancelled and checked-out stays never block new reservations.
    */
-  async findConflicts(propertyId: string, range: { checkIn: string; checkOut: string }, excludeId?: string): Promise<BookingRecord[]> {
+  async findConflicts(
+    propertyId: string,
+    range: { checkIn: string; checkOut: string },
+    excludeId?: string,
+  ): Promise<BookingRecord[]> {
     const db = getDb();
     if (!db) {
       return this.memory.filter(
@@ -108,7 +159,7 @@ export class BookingsRepository {
           b.id !== excludeId &&
           b.propertyId === propertyId &&
           BLOCKING_STATUSES.includes(b.status) &&
-          bookingDatesOverlap(b, range)
+          bookingDatesOverlap(b, range),
       );
     }
     const conditions = [
@@ -116,9 +167,12 @@ export class BookingsRepository {
       inArray(bookingsTable.status, BLOCKING_STATUSES),
       lt(bookingsTable.checkIn, range.checkOut),
       gt(bookingsTable.checkOut, range.checkIn),
-      excludeId ? ne(bookingsTable.id, excludeId) : undefined
+      excludeId ? ne(bookingsTable.id, excludeId) : undefined,
     ].filter((c): c is NonNullable<typeof c> => c !== undefined);
-    const rows = await db.select().from(bookingsTable).where(and(...conditions));
+    const rows = await db
+      .select()
+      .from(bookingsTable)
+      .where(and(...conditions));
     return rows.map(rowToRecord);
   }
 
@@ -143,13 +197,16 @@ export class BookingsRepository {
         status: record.status,
         totalAmount: record.totalAmount,
         createdAt: new Date(record.createdAt),
-        updatedAt: new Date(record.updatedAt)
+        updatedAt: new Date(record.updatedAt),
       })
       .returning();
     return rowToRecord(row as Row);
   }
 
-  async update(id: string, patch: Partial<BookingRecord>): Promise<BookingRecord | undefined> {
+  async update(
+    id: string,
+    patch: Partial<BookingRecord>,
+  ): Promise<BookingRecord | undefined> {
     const db = getDb();
     if (!db) {
       const booking = this.memory.find((b) => b.id === id);
@@ -159,7 +216,10 @@ export class BookingsRepository {
     }
     const [row] = await db
       .update(bookingsTable)
-      .set({ ...(patch.status ? { status: patch.status } : {}), updatedAt: new Date() })
+      .set({
+        ...(patch.status ? { status: patch.status } : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(bookingsTable.id, id))
       .returning();
     return row ? rowToRecord(row as Row) : undefined;

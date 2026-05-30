@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'manager' | 'operator' | 'vendor';
+export type Role = "admin" | "manager" | "operator" | "vendor";
 
 export interface AuditFields {
   createdAt: Date;

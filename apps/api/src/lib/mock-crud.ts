@@ -1,24 +1,24 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-export const statusSchema = z.enum(['pending', 'active', 'done', 'blocked']);
+export const statusSchema = z.enum(["pending", "active", "done", "blocked"]);
 
 export const entitySchema = z.object({
   id: z.string().uuid(),
   title: z.string().min(1),
   status: statusSchema,
-  priority: z.enum(['low', 'medium', 'high']),
-  notes: z.string().default(''),
+  priority: z.enum(["low", "medium", "high"]),
+  notes: z.string().default(""),
   dueDate: z.string().nullable(),
   createdAt: z.string(),
-  updatedAt: z.string()
+  updatedAt: z.string(),
 });
 
 export const createEntitySchema = z.object({
   title: z.string().min(1),
   status: statusSchema.optional(),
-  priority: z.enum(['low', 'medium', 'high']).optional(),
+  priority: z.enum(["low", "medium", "high"]).optional(),
   notes: z.string().optional(),
-  dueDate: z.string().nullable().optional()
+  dueDate: z.string().nullable().optional(),
 });
 
 export const updateEntitySchema = createEntitySchema.partial();
@@ -28,7 +28,7 @@ export type Entity = z.infer<typeof entitySchema>;
 export class MockCrudStore {
   private readonly items: Entity[];
 
-  constructor(seed: Array<Pick<Entity, 'title' | 'status' | 'priority'>>) {
+  constructor(seed: Array<Pick<Entity, "title" | "status" | "priority">>) {
     this.items = seed.map((item) => {
       const now = new Date().toISOString();
       return {
@@ -36,16 +36,18 @@ export class MockCrudStore {
         title: item.title,
         status: item.status,
         priority: item.priority,
-        notes: '',
+        notes: "",
         dueDate: null,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       };
     });
   }
 
   list(status?: z.infer<typeof statusSchema>) {
-    return status ? this.items.filter((item) => item.status === status) : this.items;
+    return status
+      ? this.items.filter((item) => item.status === status)
+      : this.items;
   }
 
   stats() {
@@ -62,12 +64,12 @@ export class MockCrudStore {
     const entity: Entity = {
       id: crypto.randomUUID(),
       title: payload.title,
-      status: payload.status ?? 'pending',
-      priority: payload.priority ?? 'medium',
-      notes: payload.notes ?? '',
+      status: payload.status ?? "pending",
+      priority: payload.priority ?? "medium",
+      notes: payload.notes ?? "",
       dueDate: payload.dueDate ?? null,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
     this.items.unshift(entity);
     return entity;
@@ -81,6 +83,6 @@ export class MockCrudStore {
   }
 
   markDone(id: string) {
-    return this.update(id, { status: 'done' });
+    return this.update(id, { status: "done" });
   }
 }

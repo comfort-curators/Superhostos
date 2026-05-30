@@ -1,7 +1,7 @@
-import type { VendorOption, VendorScore } from '../contracts';
-import type { SharedMemory } from '../memory';
-import { argmax, normalizedEntropy } from '../math';
-import { optimizerOpinion } from './advisors';
+import type { VendorOption, VendorScore } from "../contracts";
+import { argmax, normalizedEntropy } from "../math";
+import type { SharedMemory } from "../memory";
+import { optimizerOpinion } from "./advisors";
 
 export interface VendorSelection {
   selected: VendorOption | null;
@@ -32,14 +32,14 @@ export class VendorAgent {
       vendorId: vendor.id,
       vendorName: vendor.name,
       utility: probabilities[i] ?? 0,
-      probability: probabilities[i] ?? 0
+      probability: probabilities[i] ?? 0,
     }));
 
     return {
       selected: candidates[winner] ?? null,
       scores,
       confidence: probabilities[winner] ?? 0,
-      entropy: normalizedEntropy(probabilities)
+      entropy: normalizedEntropy(probabilities),
     };
   }
 }

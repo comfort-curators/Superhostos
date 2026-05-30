@@ -1,4 +1,4 @@
-export type AiProviderName = 'openai' | 'anthropic' | 'gemini' | 'digitalocean';
+export type AiProviderName = "openai" | "anthropic" | "gemini" | "digitalocean";
 
 export interface AiGenerateRequest {
   provider: AiProviderName;

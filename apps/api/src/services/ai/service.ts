@@ -1,4 +1,8 @@
-import type { AiGenerateRequest, AiGenerateResponse, AiProvider } from './provider';
+import type {
+  AiGenerateRequest,
+  AiGenerateResponse,
+  AiProvider,
+} from "./provider";
 
 export class AiService {
   constructor(private readonly providers: Map<string, AiProvider>) {}

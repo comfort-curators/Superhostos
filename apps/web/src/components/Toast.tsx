@@ -1,7 +1,13 @@
-import { createContext, useCallback, useContext, useState, type PropsWithChildren } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  type PropsWithChildren,
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+} from "react";
 
-type ToastTone = 'success' | 'error' | 'info';
+type ToastTone = "success" | "error" | "info";
 
 interface ToastItem {
   id: number;
@@ -19,14 +25,14 @@ const ToastContext = createContext<ToastApi | null>(null);
 
 export function useToast(): ToastApi {
   const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast must be used within a ToastProvider');
+  if (!ctx) throw new Error("useToast must be used within a ToastProvider");
   return ctx;
 }
 
 const TONE: Record<ToastTone, string> = {
-  success: 'border-l-emerald-500',
-  error: 'border-l-rose-500',
-  info: 'border-l-gold'
+  success: "border-l-emerald-500",
+  error: "border-l-rose-500",
+  info: "border-l-gold",
 };
 
 let counter = 0;
@@ -34,22 +40,25 @@ let counter = 0;
 export const ToastProvider = ({ children }: PropsWithChildren) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const dismiss = useCallback((id: number) => setToasts((list) => list.filter((t) => t.id !== id)), []);
+  const dismiss = useCallback(
+    (id: number) => setToasts((list) => list.filter((t) => t.id !== id)),
+    [],
+  );
 
   const notify = useCallback(
-    (message: string, tone: ToastTone = 'info') => {
+    (message: string, tone: ToastTone = "info") => {
       counter += 1;
       const id = counter;
       setToasts((list) => [...list, { id, message, tone }]);
       setTimeout(() => dismiss(id), 3800);
     },
-    [dismiss]
+    [dismiss],
   );
 
   const api: ToastApi = {
     notify,
-    success: (message) => notify(message, 'success'),
-    error: (message) => notify(message, 'error')
+    success: (message) => notify(message, "success"),
+    error: (message) => notify(message, "error"),
   };
 
   return (

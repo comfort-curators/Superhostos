@@ -1,6 +1,6 @@
-import { Redirect, Route, Switch } from 'wouter';
-import { SignedIn, SignedOut, SignIn } from '@clerk/clerk-react';
-import { AppLayout } from './components/layout/AppLayout';
+import { SignIn, SignedIn, SignedOut } from "@clerk/clerk-react";
+import { Redirect, Route, Switch } from "wouter";
+import { AppLayout } from "./components/layout/AppLayout";
 import {
   AiReplyPage,
   AnalyticsPage,
@@ -17,9 +17,9 @@ import {
   PropertiesPage,
   PropertyDetailPage,
   SettingsPage,
-  VendorsPage
-} from './pages';
-import { CookiePolicyPage, PrivacyPage, TermsPage } from './pages/legal';
+  VendorsPage,
+} from "./pages";
+import { CookiePolicyPage, PrivacyPage, TermsPage } from "./pages/legal";
 
 const ProductRoutes = () => (
   <AppLayout>
@@ -49,7 +49,9 @@ const ProductRoutes = () => (
 const AuthenticatedRouter = () => (
   <>
     <Route path="/login" component={LoginPage} />
-    <Route path="/sign-in">{() => <SignIn routing="path" path="/sign-in" />}</Route>
+    <Route path="/sign-in">
+      {() => <SignIn routing="path" path="/sign-in" />}
+    </Route>
     <Route>
       <SignedOut>
         <Redirect to="/login" />

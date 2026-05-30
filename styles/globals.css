@@ -57,7 +57,12 @@ body {
 }
 
 .loading-shimmer {
-  background: linear-gradient(90deg, transparent, rgba(248, 246, 243, 0.1), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(248, 246, 243, 0.1),
+    transparent
+  );
   background-size: 200px 100%;
   animation: shimmer 1.5s infinite;
 }

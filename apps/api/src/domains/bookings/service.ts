@@ -1,32 +1,36 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto";
+import { PropertiesRepository } from "../properties/repository";
 import {
   type BookingDto,
   type BookingStats,
   type BookingStatus,
   type CreateBookingInput,
-  createBookingSchema
-} from './contracts';
-import { PropertiesRepository } from '../properties/repository';
-import { BookingsRepository, type BookingFilter, type BookingRecord } from './repository';
+  createBookingSchema,
+} from "./contracts";
+import {
+  type BookingFilter,
+  type BookingRecord,
+  BookingsRepository,
+} from "./repository";
 
 /** Raised when a requested operation cannot be satisfied; carries an HTTP code. */
 export class BookingError extends Error {
   constructor(
     readonly statusCode: number,
     message: string,
-    readonly details?: unknown
+    readonly details?: unknown,
   ) {
     super(message);
-    this.name = 'BookingError';
+    this.name = "BookingError";
   }
 }
 
 // Allowed status transitions. A booking can only move along these edges.
 const TRANSITIONS: Record<BookingStatus, ReadonlyArray<BookingStatus>> = {
-  confirmed: ['checked_in', 'cancelled'],
-  checked_in: ['checked_out', 'cancelled'],
+  confirmed: ["checked_in", "cancelled"],
+  checked_in: ["checked_out", "cancelled"],
   checked_out: [],
-  cancelled: []
+  cancelled: [],
 };
 
 // The persisted record already carries every field the contract exposes
@@ -38,7 +42,7 @@ function toContract(record: BookingRecord): BookingDto {
 export class BookingsService {
   constructor(
     private readonly repository: BookingsRepository = new BookingsRepository(),
-    private readonly properties: PropertiesRepository = new PropertiesRepository()
+    private readonly properties: PropertiesRepository = new PropertiesRepository(),
   ) {}
 
   async list(filter: BookingFilter = {}): Promise<BookingDto[]> {
@@ -57,16 +61,23 @@ export class BookingsService {
       throw new BookingError(404, `Property ${payload.propertyId} not found`);
     }
 
-    const conflicts = await this.repository.findConflicts(payload.propertyId, payload);
+    const conflicts = await this.repository.findConflicts(
+      payload.propertyId,
+      payload,
+    );
     if (conflicts.length > 0) {
-      throw new BookingError(409, 'Booking dates conflict with an existing reservation', {
-        conflicts: conflicts.map((conflict) => ({
-          id: conflict.id,
-          checkIn: conflict.checkIn,
-          checkOut: conflict.checkOut,
-          externalReservationId: conflict.externalReservationId
-        }))
-      });
+      throw new BookingError(
+        409,
+        "Booking dates conflict with an existing reservation",
+        {
+          conflicts: conflicts.map((conflict) => ({
+            id: conflict.id,
+            checkIn: conflict.checkIn,
+            checkOut: conflict.checkOut,
+            externalReservationId: conflict.externalReservationId,
+          })),
+        },
+      );
     }
 
     const now = new Date().toISOString();
@@ -75,30 +86,32 @@ export class BookingsService {
       propertyId: payload.propertyId,
       propertyName: property.name,
       source: payload.source,
-      externalReservationId: payload.externalReservationId ?? `SHO-${randomUUID().slice(0, 8).toUpperCase()}`,
+      externalReservationId:
+        payload.externalReservationId ??
+        `SHO-${randomUUID().slice(0, 8).toUpperCase()}`,
       guestName: payload.guestName,
       guestCount: payload.guestCount,
       checkIn: payload.checkIn,
       checkOut: payload.checkOut,
-      status: 'confirmed',
+      status: "confirmed",
       totalAmount: payload.totalAmount,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
 
     return toContract(await this.repository.insert(record));
   }
 
   checkIn(id: string): Promise<BookingDto> {
-    return this.transition(id, 'checked_in');
+    return this.transition(id, "checked_in");
   }
 
   checkOut(id: string): Promise<BookingDto> {
-    return this.transition(id, 'checked_out');
+    return this.transition(id, "checked_out");
   }
 
   cancel(id: string): Promise<BookingDto> {
-    return this.transition(id, 'cancelled');
+    return this.transition(id, "cancelled");
   }
 
   async stats(filter: BookingFilter = {}): Promise<BookingStats> {
@@ -112,14 +125,20 @@ export class BookingsService {
       total: bookings.length,
       upcoming: byStatus.confirmed ?? 0,
       inHouse: byStatus.checked_in ?? 0,
-      byStatus
+      byStatus,
     };
   }
 
-  private async transition(id: string, next: BookingStatus): Promise<BookingDto> {
+  private async transition(
+    id: string,
+    next: BookingStatus,
+  ): Promise<BookingDto> {
     const booking = await this.requireBooking(id);
     if (!TRANSITIONS[booking.status].includes(next)) {
-      throw new BookingError(409, `Cannot move booking from ${booking.status} to ${next}`);
+      throw new BookingError(
+        409,
+        `Cannot move booking from ${booking.status} to ${next}`,
+      );
     }
     const updated = await this.repository.update(id, { status: next });
     if (!updated) throw new BookingError(404, `Booking ${id} not found`);
