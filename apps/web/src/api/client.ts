@@ -80,6 +80,26 @@ async function mutate<T>(path: string, schema: z.ZodType<T>, init: RequestInit):
   return schema.parse(await response.json());
 }
 
+const guestReplySchema = z.object({
+  reply: z.string(),
+  provider: z.string(),
+  model: z.string(),
+  promptTokens: z.number(),
+  completionTokens: z.number()
+});
+export type GuestReplyDto = z.infer<typeof guestReplySchema>;
+
+export interface GuestReplyInput {
+  guestName: string;
+  propertyName: string;
+  message: string;
+  amenities?: string[];
+  tone?: 'warm' | 'concise' | 'formal';
+}
+
+export const generateGuestReply = (payload: GuestReplyInput) =>
+  mutate('/v1/ai/guest-reply', guestReplySchema, { method: 'POST', body: JSON.stringify(payload) });
+
 export const fetchBookings = (status?: string) =>
   request(`/v1/bookings${status && status !== 'all' ? `?status=${status}` : ''}`, z.array(bookingSchema));
 export const fetchBookingStats = () => request('/v1/bookings/stats', bookingStatsSchema);

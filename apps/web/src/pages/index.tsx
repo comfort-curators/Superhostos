@@ -69,7 +69,7 @@ export const MaintenancePage = () => <OpsPage title="Maintenance" subtitle="Issu
 export const VendorsPage = () => <OpsPage title="Vendors" subtitle="Provider roster and performance." domain="vendors" />;
 export const OrdersPage = () => <OpsPage title="Orders" subtitle="Consumables and restock workflows." domain="orders" />;
 export const MessagesPage = () => <OpsPage title="Guest Messages" subtitle="Conversation inbox." domain="auth/tasks" />;
-export const AiReplyPage = () => <OpsPage title="AI Reply Panel" subtitle="Policy-aware generation queue." domain="ai-replies" />;
+export { AiReplyPage } from './AiReply';
 export const AnalyticsPage = () => <OpsPage title="Analytics" subtitle="KPI snapshots and trends." domain="analytics" />;
 export const SettingsPage = () => <OpsPage title="Settings" subtitle="Organization settings checklist." domain="auth/tasks" />;
 export { BookingsPage } from './Bookings';

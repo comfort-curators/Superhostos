@@ -51,6 +51,14 @@ services:
         scope: RUN_TIME
         type: SECRET
         value: REPLACE_IN_DASHBOARD
+      # DigitalOcean GradientAI inference — powers AI guest replies.
+      - key: DO_INFERENCE_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_IN_DASHBOARD
+      - key: DO_INFERENCE_MODEL
+        scope: RUN_TIME
+        value: llama3.3-70b-instruct
 
 static_sites:
   - name: web
