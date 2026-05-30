@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { PropertiesRepository } from './repository';
-import { createPropertySchema, PropertiesService } from './service';
+import { PropertiesService } from './service';
 
 export const propertiesRoutes: FastifyPluginAsync = async (app) => {
   const service = new PropertiesService(new PropertiesRepository());
@@ -41,7 +41,7 @@ export const propertiesRoutes: FastifyPluginAsync = async (app) => {
       }
     }
   }, async (req, reply) => {
-    const property = service.create(createPropertySchema.parse(req.body));
+    const property = await service.create(req.body);
     return reply.code(201).send(property);
   });
 };

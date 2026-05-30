@@ -52,7 +52,7 @@ export class BookingsService {
   async create(input: unknown): Promise<BookingDto> {
     const payload: CreateBookingInput = createBookingSchema.parse(input);
 
-    const property = this.properties.findById(payload.propertyId);
+    const property = await this.properties.findById(payload.propertyId);
     if (!property) {
       throw new BookingError(404, `Property ${payload.propertyId} not found`);
     }
